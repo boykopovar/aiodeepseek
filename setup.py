@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import sys
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
 
 
-def _extra_compile_args() -> list:
-    """Return platform-appropriate C++ compiler flags."""
+def _extra_compile_args() -> list[str]:
     if sys.platform == "win32":
-        return ["/std:c++17", "/O2", "/GL"]
-    return ["-std=c++17", "-O3", "-fvisibility=hidden"]
+        return ["/std:c++17", "/O2"]
+
+    return ["-std=c++17", "-O3"]
 
 
-def _extra_link_args() -> list:
-    """Return platform-appropriate linker flags."""
+def _extra_link_args() -> list[str]:
     if sys.platform == "win32":
-        return ["/LTCG"]
+        return []
+
     return []
 
 
 def _build_ext() -> Extension:
-    """Construct the pybind11 Extension for the _pow module."""
     import pybind11
 
     return Extension(
@@ -32,4 +32,6 @@ def _build_ext() -> Extension:
     )
 
 
-setup(ext_modules=[_build_ext()])
+setup(
+    ext_modules=[_build_ext()],
+)
