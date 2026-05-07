@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, AsyncIterator, Optional
 
-from aiodeepseek.types.models import DeepSeekTurnResult
+from aiodeepseek.types.models import DeepSeekTurnResult, UploadedImage
 
 if TYPE_CHECKING:
     from aiodeepseek.client import DeepSeekClient
@@ -14,8 +14,7 @@ class Conversation:
     Tracks the ``parent_message_id`` across turns so each reply is threaded
     onto the previous assistant message within the same session.
 
-    Obtained via :meth:`~aiodeepseek.DeepSeekClient.new_conversation`::
-
+    Obtained via :meth:`~aiodeepseek.DeepSeekClient.new_conversation`::\n
         async with DeepSeekClient(token="...") as client:
             chat = client.new_conversation()
             await chat.ask("Hi!")
@@ -42,6 +41,7 @@ class Conversation:
         self,
         prompt: str,
         *,
+        image: Optional[UploadedImage] = None,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> str:
@@ -49,6 +49,9 @@ class Conversation:
 
         Args:
             prompt: The user message to send.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
+                attach to this message.  Obtain one via
+                :meth:`~aiodeepseek.DeepSeekClient.upload_image`.
             model: Override the client-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
@@ -58,6 +61,7 @@ class Conversation:
         """
         result = await self._client.ask(
             prompt,
+            image=image,
             model=model,
             timeout=timeout,
             parent_message_id=self._parent_message_id,
@@ -69,6 +73,7 @@ class Conversation:
         self,
         prompt: str,
         *,
+        image: Optional[UploadedImage] = None,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> AsyncIterator[str]:
@@ -79,6 +84,9 @@ class Conversation:
 
         Args:
             prompt: The user message to send.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
+                attach to this message.  Obtain one via
+                :meth:`~aiodeepseek.DeepSeekClient.upload_image`.
             model: Override the client-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
@@ -96,6 +104,7 @@ class Conversation:
             resolved_model,
             timeout,
             parent_message_id=self._parent_message_id,
+            image=image,
         ):
             if mid is not None:
                 last_message_id = mid

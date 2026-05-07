@@ -1,5 +1,6 @@
 BASE_URL = "https://chat.deepseek.com"
 COMPLETION_PATH = "/api/v0/chat/completion"
+UPLOAD_PATH = "/api/v0/file/upload_file"
 
 HEADERS = {
     "Content-Type": "application/json",

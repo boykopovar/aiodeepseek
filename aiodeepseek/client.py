@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from typing import AsyncIterator, Optional
+from pathlib import Path
+from typing import AsyncIterator, Optional, Union
 
 import aiohttp
 
 from aiodeepseek.conversation import Conversation
 from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.http import _DeepSeekSession
-from aiodeepseek.types.models import DeepSeekTurnResult
+from aiodeepseek.types.enums import ModelType
+from aiodeepseek.types.models import DeepSeekTurnResult, UploadedImage, load_image
+
+ImageSource = Union[bytes, Path]
 
 
 class DeepSeekClient:
@@ -15,8 +19,7 @@ class DeepSeekClient:
 
     Accepts either a pre-obtained token or credentials (email + password).
     When credentials are provided the token is fetched automatically on
-    :meth:`open`::
-
+    :meth:`open`::\n
         async with DeepSeekClient(token="...") as client:
             result = await client.ask("Hello!")
 
@@ -38,7 +41,7 @@ class DeepSeekClient:
         email: Optional[str] = None,
         password: Optional[str] = None,
         token: Optional[str] = None,
-        model: str = "default",
+        model: ModelType = ModelType.DEFAULT,
         device_id: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> None:
@@ -78,6 +81,7 @@ class DeepSeekClient:
             return await _DeepSeekSession.fetch_token(session, email, password)
 
     async def open(self) -> None:
+        """Open the HTTP session and authenticate if needed."""
         await self._http.open()
 
         if self._token is None:
@@ -88,6 +92,7 @@ class DeepSeekClient:
         self._session_id = await self._http.create_chat_session(self._token)
 
     async def close(self) -> None:
+        """Close the HTTP session."""
         await self._http.close()
 
     async def __aenter__(self) -> "DeepSeekClient":
@@ -97,11 +102,61 @@ class DeepSeekClient:
     async def __aexit__(self, *args: object) -> None:
         await self.close()
 
+    async def upload_image(
+        self,
+        source: ImageSource,
+        *,
+        filename: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> UploadedImage:
+        """Upload a PNG or JPEG image and return an :class:`~aiodeepseek.types.models.UploadedImage`.
+
+        The returned object can be passed directly to :meth:`ask` or
+        :meth:`ask_stream` to attach the image to a message without
+        re-uploading it.
+
+        Args:
+            source: A :class:`pathlib.Path` to a PNG/JPEG file, or raw image
+                bytes.
+            filename: Override the filename sent in the multipart request.
+                When *source* is a :class:`~pathlib.Path` the file's name is
+                used by default; for raw bytes it falls back to
+                ``"image.jpg"`` or ``"image.png"`` based on detected format.
+            timeout: Per-call timeout override; falls back to the client default.
+
+        Returns:
+            :class:`~aiodeepseek.types.models.UploadedImage` ready to attach
+            to the next :meth:`ask` / :meth:`ask_stream` call.
+
+        Raises:
+            ValueError: If the image format is not PNG or JPEG.
+            DeepSeekError: On HTTP or API error.
+        """
+        data, mime, width, height = load_image(source)
+
+        if filename is None:
+            if isinstance(source, Path):
+                filename = source.name
+            else:
+                filename = "image.png" if mime == "image/png" else "image.jpg"
+
+        return await self._http.upload_image(
+            self._token,
+            data=data,
+            mime_type=mime,
+            width=width,
+            height=height,
+            filename=filename,
+            model=self._default_model,
+            timeout=timeout if timeout is not None else self._default_timeout,
+        )
+
     async def ask(
         self,
         prompt: str,
         *,
-        model: Optional[str] = None,
+        image: Optional[UploadedImage] = None,
+        model: Optional[ModelType] = None,
         timeout: Optional[float] = None,
         parent_message_id: Optional[str] = None,
     ) -> DeepSeekTurnResult:
@@ -109,6 +164,8 @@ class DeepSeekClient:
 
         Args:
             prompt: The user message to send.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
+                attach to this message.  Obtain one via :meth:`upload_image`.
             model: Override the instance-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
@@ -125,8 +182,13 @@ class DeepSeekClient:
         message_id: Optional[str] = None
 
         async for cumulative, mid in self._http.stream_chat(
-            self._token, self._session_id, prompt, resolved_model, timeout,
+            self._token,
+            self._session_id,
+            prompt,
+            resolved_model,
+            timeout,
             parent_message_id=parent_message_id,
+            image=image,
         ):
             text = cumulative
             if mid is not None:
@@ -138,7 +200,8 @@ class DeepSeekClient:
         self,
         prompt: str,
         *,
-        model: Optional[str] = None,
+        image: Optional[UploadedImage] = None,
+        model: Optional[ModelType] = None,
         timeout: Optional[float] = None,
         parent_message_id: Optional[str] = None,
     ) -> AsyncIterator[str]:
@@ -154,6 +217,8 @@ class DeepSeekClient:
 
         Args:
             prompt: The user message to send.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
+                attach to this message.  Obtain one via :meth:`upload_image`.
             model: Override the instance-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
@@ -165,12 +230,17 @@ class DeepSeekClient:
         resolved_model = model if model is not None else self._default_model
 
         async for cumulative, _ in self._http.stream_chat(
-            self._token, self._session_id, prompt, resolved_model, timeout,
+            self._token,
+            self._session_id,
+            prompt,
+            resolved_model,
+            timeout,
             parent_message_id=parent_message_id,
+            image=image,
         ):
             yield cumulative
 
-    def new_conversation(self) -> "Conversation":
+    def new_conversation(self) -> Conversation:
         """Return a new :class:`~aiodeepseek.Conversation` bound to this client.
 
         The returned object tracks ``parent_message_id`` automatically
