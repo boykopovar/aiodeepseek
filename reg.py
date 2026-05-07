@@ -10,7 +10,7 @@ from typing import Any
 import aiohttp
 from dotenv import load_dotenv
 
-from aiodeepseek.constants import BASE_URL, HEADERS
+from aiodeepseek.data.constants import BASE_URL, HEADERS
 from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.pow.pow import solve_pow
 from aiodeepseek.types.exceptions import DeepSeekError

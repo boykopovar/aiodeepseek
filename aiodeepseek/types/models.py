@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -25,10 +28,15 @@ class DeepSeekTurnResult:
     Attributes:
         text: The assistant's full response text.
         session_id: DeepSeek chat session identifier.
+        message_id: DeepSeek message identifier for this assistant turn.
+            Pass as ``parent_message_id`` in the next turn to continue
+            the conversation thread. May be ``None`` if the server did
+            not emit a message id for this turn.
     """
 
     text: str
     session_id: str
+    message_id: Optional[str] = None
 
 
 class UploadedImage:

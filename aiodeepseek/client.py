@@ -4,6 +4,7 @@ from typing import AsyncIterator, Optional
 
 import aiohttp
 
+from aiodeepseek.conversation import Conversation
 from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.http import _DeepSeekSession
 from aiodeepseek.types.models import DeepSeekTurnResult
@@ -27,6 +28,7 @@ class DeepSeekClient:
         password: DeepSeek account password. Required when *token* is not given.
         token: Pre-obtained bearer token. Skips login when provided.
         model: Default model string sent to the API.
+        device_id: Optional stable device identifier.
         timeout: Default total timeout in seconds. ``None`` means no timeout.
     """
 
@@ -101,6 +103,7 @@ class DeepSeekClient:
         *,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
+        parent_message_id: Optional[str] = None,
     ) -> DeepSeekTurnResult:
         """Send *prompt* and return the complete assistant reply.
 
@@ -109,20 +112,27 @@ class DeepSeekClient:
             model: Override the instance-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
+            parent_message_id: Message id of the previous assistant turn.
+                Pass the :attr:`~DeepSeekTurnResult.message_id` from the last
+                result to continue an existing thread within the session.
 
         Returns:
-            :class:`DeepSeekTurnResult` with the full response text and the
-            current session id.
+            :class:`DeepSeekTurnResult` with the full response text, the
+            current session id, and the assistant message id for this turn.
         """
         resolved_model = model if model is not None else self._default_model
         text = ""
+        message_id: Optional[str] = None
 
-        async for cumulative in self._http.stream_chat(
-            self._token, self._session_id, prompt, resolved_model, timeout
+        async for cumulative, mid in self._http.stream_chat(
+            self._token, self._session_id, prompt, resolved_model, timeout,
+            parent_message_id=parent_message_id,
         ):
             text = cumulative
+            if mid is not None:
+                message_id = mid
 
-        return DeepSeekTurnResult(text=text, session_id=self._session_id)
+        return DeepSeekTurnResult(text=text, session_id=self._session_id, message_id=message_id)
 
     async def ask_stream(
         self,
@@ -130,24 +140,40 @@ class DeepSeekClient:
         *,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
+        parent_message_id: Optional[str] = None,
     ) -> AsyncIterator[str]:
         """Stream the assistant reply as cumulative text chunks.
 
         Each yielded string is the full response accumulated so far.
         The last yielded value is the complete reply.
 
+        Note:
+            This stateless variant discards the assistant message id after
+            streaming. Use :class:`~aiodeepseek.Conversation` to continue
+            the thread automatically.
+
         Args:
             prompt: The user message to send.
             model: Override the instance-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
                 ``None`` falls back to the client default.
+            parent_message_id: Message id of the previous assistant turn.
 
         Yields:
             Cumulative assistant text — each value is the full response so far.
         """
         resolved_model = model if model is not None else self._default_model
 
-        async for cumulative in self._http.stream_chat(
-            self._token, self._session_id, prompt, resolved_model, timeout
+        async for cumulative, _ in self._http.stream_chat(
+            self._token, self._session_id, prompt, resolved_model, timeout,
+            parent_message_id=parent_message_id,
         ):
             yield cumulative
+
+    def new_conversation(self) -> "Conversation":
+        """Return a new :class:`~aiodeepseek.Conversation` bound to this client.
+
+        The returned object tracks ``parent_message_id`` automatically
+        across turns so that each reply is threaded onto the previous one.
+        """
+        return Conversation(self)

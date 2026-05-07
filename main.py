@@ -5,7 +5,7 @@ import time
 
 from dotenv import load_dotenv
 
-from aiodeepseek import DeepSeekClient
+from aiodeepseek import DeepSeekClient, Conversation
 
 load_dotenv()
 
@@ -14,25 +14,14 @@ def print_prompt() -> None:
     print("\nYou: ", end="", flush=True)
 
 
-def print_assistant() -> None:
+async def stream_reply(conversation: Conversation, prompt: str) -> None:
+    total_start = time.perf_counter()
+
     print("\nAssistant: ", end="", flush=True)
 
-
-async def stream_reply(client: DeepSeekClient, prompt: str) -> None:
-    total_start = time.perf_counter()
-    request_start = time.perf_counter()
-
-    print_assistant()
-
-    first_token = False
     last_len = 0
 
-    async for chunk in client.ask_stream(prompt):
-        if not first_token:
-            # print(f"\n[first token {time.perf_counter() - request_start:.2f}s]")
-            print_assistant()
-            first_token = True
-
+    async for chunk in conversation.ask_stream(prompt):
         new_part = chunk[last_len:]
         print(new_part, end="", flush=True)
         last_len = len(chunk)
@@ -59,6 +48,8 @@ async def main() -> None:
         kwargs["password"] = password
 
     async with DeepSeekClient(**kwargs) as client:
+        conversation = client.new_conversation()
+
         while True:
             print_prompt()
 
@@ -75,7 +66,7 @@ async def main() -> None:
             if user_input.lower() in {"quit", "exit"}:
                 break
 
-            await stream_reply(client, user_input)
+            await stream_reply(conversation, user_input)
 
 
 if __name__ == "__main__":
