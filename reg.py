@@ -5,20 +5,17 @@ import json
 import os
 import random
 import time
-import uuid
 from typing import Any
 
 import aiohttp
 from dotenv import load_dotenv
 
 from aiodeepseek.constants import BASE_URL, HEADERS
-from aiodeepseek.pow import solve_pow
+from aiodeepseek.data.device_ids import get_device_id
+from aiodeepseek.pow.pow import solve_pow
 from aiodeepseek.types.exceptions import DeepSeekError
 
 load_dotenv()
-
-HIF_DLIQ_URL = "https://hif-dliq.deepseek.com/query"
-HIF_LEIM_URL = "https://hif-leim.deepseek.com/query"
 
 REGISTER_PATH = "/api/v0/users/register"
 
@@ -27,13 +24,6 @@ _rangers_id: str = str(random.randint(10**18, 10**19 - 1))
 
 def _timezone_offset_seconds() -> int:
     return -time.timezone if time.daylight == 0 else -time.altzone
-
-
-def _new_device_id() -> str:
-    return base64.b64encode(
-        os.urandom(64)
-    ).decode()
-
 
 
 def _base_headers() -> dict[str, str]:
@@ -106,7 +96,7 @@ async def send_register_code(
     locale: str = "en_US",
     device_id: str | None = None,
 ) -> dict[str, Any]:
-    device_id = device_id or _new_device_id()
+    device_id = device_id or get_device_id()
 
     body = {
         "email": email,
@@ -152,7 +142,7 @@ async def confirm_register(
     locale: str = "ru",
     device_id: str | None = None,
 ) -> str:
-    device_id = device_id or _new_device_id()
+    device_id = device_id or get_device_id()
 
     body = {
         "region": region,

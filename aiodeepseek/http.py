@@ -8,7 +8,8 @@ from typing import AsyncIterator, Optional
 import aiohttp
 
 from aiodeepseek.constants import BASE_URL, COMPLETION_PATH, HEADERS
-from aiodeepseek.pow import solve_pow
+from aiodeepseek.data.device_ids import get_device_id
+from aiodeepseek.pow.pow import solve_pow
 from aiodeepseek.types.exceptions import DeepSeekError
 
 def _extract_fragment(event: dict) -> str:
@@ -75,6 +76,7 @@ class _DeepSeekSession:
         session: aiohttp.ClientSession,
         email: str,
         password: str,
+        device_id: Optional[str] = None
     ) -> str:
         """Authenticate and return a bearer token.
 
@@ -88,13 +90,14 @@ class _DeepSeekSession:
 
         Raises:
             DeepSeekError: If the API returns a non-zero code.
+            :param device_id:
         """
         async with session.post(
             BASE_URL + "/api/v0/users/login",
             json={
                 "email": email,
                 "password": password,
-                "device_id": str(uuid.uuid4()).replace("-", ""),
+                "device_id": device_id or get_device_id(),
                 "os": "ios",
             },
             headers=HEADERS,

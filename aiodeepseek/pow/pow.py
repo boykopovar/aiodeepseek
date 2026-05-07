@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from aiodeepseek._pow import solve as _cpp
+    from aiodeepseek.pow._pow import solve as _cpp
 
     def solve_pow(base: str, challenge_hex: str, difficulty: int) -> int:
         """Brute-force a proof-of-work nonce for the DeepSeek API.
@@ -21,6 +21,6 @@ try:
 
 except ImportError:
     raise
-    from aiodeepseek._pow_py import solve_pow as solve_pow  # noqa: F401
+    from aiodeepseek.pow._pow_py import solve_pow as solve_pow  # noqa: F401
 
 __all__ = ["solve_pow"]

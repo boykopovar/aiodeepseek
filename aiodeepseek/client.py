@@ -4,6 +4,7 @@ from typing import AsyncIterator, Optional
 
 import aiohttp
 
+from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.http import _DeepSeekSession
 from aiodeepseek.types.models import DeepSeekTurnResult
 
@@ -36,6 +37,7 @@ class DeepSeekClient:
         password: Optional[str] = None,
         token: Optional[str] = None,
         model: str = "default",
+        device_id: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> None:
         if token is None and (email is None or password is None):
@@ -48,6 +50,7 @@ class DeepSeekClient:
         self._default_timeout = timeout
         self._http = _DeepSeekSession(timeout=timeout)
         self._session_id: Optional[str] = None
+        self._device_id = device_id or get_device_id()
 
     @property
     def token(self) -> Optional[str]:
@@ -77,7 +80,7 @@ class DeepSeekClient:
 
         if self._token is None:
             self._token = await _DeepSeekSession.fetch_token(
-                self._http._session, self._email, self._password
+                self._http._session, self._email, self._password, self._device_id
             )
 
         self._session_id = await self._http.create_chat_session(self._token)
