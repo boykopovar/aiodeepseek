@@ -29,7 +29,7 @@ async def stream_reply(client: DeepSeekClient, prompt: str) -> None:
 
     async for chunk in client.ask_stream(prompt):
         if not first_token:
-            print(f"\n[first token {time.perf_counter() - request_start:.2f}s]")
+            # print(f"\n[first token {time.perf_counter() - request_start:.2f}s]")
             print_assistant()
             first_token = True
 
