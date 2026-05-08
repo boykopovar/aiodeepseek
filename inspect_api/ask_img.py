@@ -27,7 +27,7 @@ async def main() -> None:
             "Set DEEPSEEK_TOKEN or both DEEPSEEK_EMAIL and DEEPSEEK_PASSWORD in .env"
         )
 
-    image_path = Path("img.png")
+    image_path = Path("img.jpg")
     if not image_path.exists():
         print(f"[error] {image_path} not found — place an image named img.jpg next to this script")
         sys.exit(1)

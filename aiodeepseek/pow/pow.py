@@ -31,7 +31,7 @@ try:
         nonce: int = _cpp(base, challenge_hex, difficulty)
 
         if total_start is not None:
-            print(f"\n[pow done {time.perf_counter() - total_start:.2f}s]")
+            print(f"\n[pow done {(time.perf_counter() - total_start) * 1000:.2f} ms]")
         return nonce
 
 except ImportError:

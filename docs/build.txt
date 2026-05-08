@@ -2,5 +2,5 @@ pip install -e . --no-build-isolation
 
 python setup.py build_ext --inplace
 
-git tag v0.0.3b
-git push origin v0.0.3b
+git tag v0.0.8b
+git push origin v0.0.8b
