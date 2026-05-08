@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import random
+import time
 from typing import Optional
 
 import aiohttp
@@ -12,24 +14,47 @@ from aiodeepseek.pow.pow import solve_pow
 from aiodeepseek.types.exceptions import DeepSeekError
 
 
-class _DeepSeekSessionBase:
-    """Manages a single ``aiohttp.ClientSession`` and all raw DeepSeek API calls.
+class _BaseClient:
+    """Base HTTP client for the DeepSeek API.
 
-    Must be used as an async context manager, or ``open`` / ``close`` must be
-    called manually, before invoking any methods.
+    Manages a single ``aiohttp.ClientSession`` and provides shared helpers
+    for proof-of-work challenges and chat session creation.  All higher-level
+    clients in the hierarchy inherit from this class and therefore always have
+    access to ``_session``, ``_timeout``, and the PoW helpers.
 
     Args:
         timeout: Default total timeout in seconds applied to every request.
             ``None`` means no timeout.
+        device_id: Stable device identifier sent to the API.  A random one is
+            chosen from the built-in pool when not provided.
     """
 
-    def __init__(self, timeout: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        timeout: Optional[float] = None,
+        device_id: Optional[str] = None,
+    ) -> None:
         self._timeout = timeout
+        self._device_id = device_id or get_device_id()
         self._session: Optional[aiohttp.ClientSession] = None
+        self._rangers_id: str = str(random.randint(10**18, 10**19 - 1))
 
     def _aiohttp_timeout(self, timeout: Optional[float]) -> Optional[aiohttp.ClientTimeout]:
-        """Convert a float timeout to an ``aiohttp.ClientTimeout``, or ``None``."""
+        """Convert a float *timeout* to ``aiohttp.ClientTimeout``, or ``None``."""
         return aiohttp.ClientTimeout(total=timeout) if timeout is not None else None
+
+    def _effective_timeout(self, timeout: Optional[float]) -> Optional[float]:
+        """Return *timeout* when given, otherwise fall back to the instance default."""
+        return timeout if timeout is not None else self._timeout
+
+    def _base_headers(self) -> dict[str, str]:
+        """Return request headers extended with dynamic per-instance values."""
+        offset = -time.timezone if time.daylight == 0 else -time.altzone
+        return {
+            **HEADERS,
+            "x-rangers-id": self._rangers_id,
+            "x-client-timezone-offset": str(offset),
+        }
 
     async def open(self) -> None:
         """Open the underlying ``aiohttp.ClientSession``."""
@@ -43,50 +68,12 @@ class _DeepSeekSessionBase:
             await self._session.close()
             self._session = None
 
-    async def __aenter__(self) -> "_DeepSeekSessionBase":
+    async def __aenter__(self) -> "_BaseClient":
         await self.open()
         return self
 
     async def __aexit__(self, *_: object) -> None:
         await self.close()
-
-    @staticmethod
-    async def fetch_token(
-        session: aiohttp.ClientSession,
-        email: str,
-        password: str,
-        device_id: Optional[str] = None,
-    ) -> str:
-        """Authenticate with e-mail and password and return a bearer token.
-
-        Args:
-            session: An already-open ``aiohttp.ClientSession``.
-            email: DeepSeek account e-mail address.
-            password: DeepSeek account password.
-            device_id: Optional stable device identifier sent to the API.
-
-        Returns:
-            Bearer token string.
-
-        Raises:
-            DeepSeekError: If the API returns a non-zero status code.
-        """
-        async with session.post(
-            BASE_URL + "/api/v0/users/login",
-            json={
-                "email": email,
-                "password": password,
-                "device_id": device_id or get_device_id(),
-                "os": "ios",
-            },
-            headers=HEADERS,
-        ) as resp:
-            data = await resp.json()
-
-        if data.get("code") != 0:
-            raise DeepSeekError(f"login failed: {data}")
-
-        return data["data"]["biz_data"]["user"]["token"]
 
     async def create_chat_session(
         self,
@@ -106,7 +93,7 @@ class _DeepSeekSessionBase:
             DeepSeekError: If the API returns a non-zero status code.
         """
         assert self._session is not None, "Session not started"
-        effective = timeout if timeout is not None else self._timeout
+        effective = self._effective_timeout(timeout)
 
         async with self._session.post(
             BASE_URL + "/api/v0/chat_session/create",
@@ -131,20 +118,18 @@ class _DeepSeekSessionBase:
 
         Args:
             token: Valid bearer token.
-            target_path: API path the PoW will be consumed by.  Defaults to
-                the chat completion endpoint; pass :data:`UPLOAD_PATH` for
-                file uploads.
+            target_path: API path the PoW will be consumed by.
             timeout: Per-call timeout override; falls back to the instance default.
 
         Returns:
-            Challenge dict containing ``salt``, ``expire_at``, ``difficulty``,
+            Challenge dict with ``salt``, ``expire_at``, ``difficulty``,
             ``challenge``, ``algorithm``, and ``signature``.
 
         Raises:
             DeepSeekError: If the API returns a non-zero status code.
         """
         assert self._session is not None, "Session not started"
-        effective = timeout if timeout is not None else self._timeout
+        effective = self._effective_timeout(timeout)
 
         async with self._session.post(
             BASE_URL + "/api/v0/chat/create_pow_challenge",
@@ -168,9 +153,8 @@ class _DeepSeekSessionBase:
     ) -> str:
         """Solve the PoW challenge and return the base64-encoded header value.
 
-        Fetches a fresh challenge, calls the native solver, and encodes the
-        solution as a base64 JSON blob suitable for the ``X-DS-PoW-Response``
-        request header.
+        Fetches a fresh challenge, calls the solver, and encodes the solution
+        as a base64 JSON blob suitable for the ``X-DS-PoW-Response`` header.
 
         Args:
             token: Valid bearer token used to fetch the challenge.
@@ -181,8 +165,7 @@ class _DeepSeekSessionBase:
             Base64-encoded JSON string.
 
         Raises:
-            DeepSeekError: If the solver does not converge within the difficulty
-                limit.
+            DeepSeekError: If the solver does not converge within the difficulty limit.
         """
         ch = await self._get_pow_challenge(token, target_path, timeout)
         salt = ch["salt"]
@@ -207,4 +190,3 @@ class _DeepSeekSessionBase:
         ).encode()
 
         return base64.b64encode(payload).decode()
-

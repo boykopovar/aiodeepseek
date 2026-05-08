@@ -7,16 +7,31 @@ from setuptools import Extension, setup
 
 def _extra_compile_args() -> list[str]:
     if sys.platform == "win32":
-        return ["/std:c++17", "/O2"]
+        return [
+            "/std:c++17",
+            "/O2",
+            "/GL",
+            "/arch:AVX2",
+        ]
 
-    return ["-std=c++17", "-O3"]
+    return [
+        "-std=c++17",
+        "-O3",
+        "-mavx2",
+        "-march=native",
+        "-flto",
+    ]
 
 
 def _extra_link_args() -> list[str]:
     if sys.platform == "win32":
-        return []
+        return [
+            "/LTCG",
+        ]
 
-    return []
+    return [
+        "-flto",
+    ]
 
 
 def _build_ext() -> Extension:

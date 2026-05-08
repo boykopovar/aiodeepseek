@@ -5,16 +5,17 @@ from typing import TYPE_CHECKING, AsyncIterator, Optional
 from aiodeepseek.types.models import DeepSeekTurnResult, UploadedImage
 
 if TYPE_CHECKING:
-    from aiodeepseek.client import DeepSeekClient
+    from aiodeepseek.clients.client import DeepSeekClient
 
 
 class Conversation:
     """Stateful multi-turn chat wrapper around :class:`~aiodeepseek.DeepSeekClient`.
 
-    Tracks the ``parent_message_id`` across turns so each reply is threaded
-    onto the previous assistant message within the same session.
+    Tracks ``parent_message_id`` across turns so each reply is threaded onto
+    the previous assistant message within the same session.
 
-    Obtained via :meth:`~aiodeepseek.DeepSeekClient.new_conversation`::\n
+    Obtained via :meth:`~aiodeepseek.DeepSeekClient.new_conversation`::
+
         async with DeepSeekClient(token="...") as client:
             chat = client.new_conversation()
             await chat.ask("Hi!")
@@ -49,12 +50,10 @@ class Conversation:
 
         Args:
             prompt: The user message to send.
-            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
-                attach to this message.  Obtain one via
-                :meth:`~aiodeepseek.DeepSeekClient.upload_image`.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to attach.
+                Obtain one via :meth:`~aiodeepseek.DeepSeekClient.upload_image`.
             model: Override the client-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
-                ``None`` falls back to the client default.
 
         Returns:
             The assistant's full response as a plain string.
@@ -79,17 +78,13 @@ class Conversation:
     ) -> AsyncIterator[str]:
         """Stream the reply as cumulative text chunks and update conversation state.
 
-        Conversation state is updated automatically once the stream is
-        fully consumed.
+        Conversation state is updated automatically once the stream is fully consumed.
 
         Args:
             prompt: The user message to send.
-            image: An :class:`~aiodeepseek.types.models.UploadedImage` to
-                attach to this message.  Obtain one via
-                :meth:`~aiodeepseek.DeepSeekClient.upload_image`.
+            image: An :class:`~aiodeepseek.types.models.UploadedImage` to attach.
             model: Override the client-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
-                ``None`` falls back to the client default.
 
         Yields:
             Cumulative assistant text — each value is the full response so far.
@@ -97,7 +92,7 @@ class Conversation:
         resolved_model = model if model is not None else self._client._default_model
         last_message_id: Optional[str] = None
 
-        async for cumulative, mid in self._client._http.stream_chat(
+        async for cumulative, mid in self._client.stream_chat(
             self._client._token,
             self._client._session_id,
             prompt,

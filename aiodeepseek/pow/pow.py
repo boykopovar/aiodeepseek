@@ -34,7 +34,6 @@ try:
             print(f"\n[pow done {time.perf_counter() - total_start:.2f}s]")
         return nonce
 
-
 except ImportError:
     raise
     from aiodeepseek.pow._pow_py import solve_pow as solve_pow  # noqa: F401

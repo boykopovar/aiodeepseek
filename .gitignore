@@ -9,6 +9,9 @@ raw/
 *.env
 *.zip
 
+*.png
+*.jpg
+
 __pycache__/
 .mypy_cache/
 *.py[cod]
