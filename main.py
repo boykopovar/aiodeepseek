@@ -17,7 +17,7 @@ def print_prompt() -> None:
 async def stream_reply(conversation: Conversation, prompt: str) -> None:
     total_start = time.perf_counter()
 
-    print("\nAssistant: ", end="", flush=True)
+    print("\nDeepSeek: ", end="", flush=True)
 
     last_len = 0
 
@@ -67,6 +67,10 @@ async def main() -> None:
                 break
 
             await stream_reply(conversation, user_input)
+
+            if not token:
+                token = client.token
+                print(f"Token: {token}")
 
 
 if __name__ == "__main__":

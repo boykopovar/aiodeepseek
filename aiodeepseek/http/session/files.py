@@ -11,7 +11,7 @@ from aiodeepseek.data.constants import BASE_URL, HEADERS, UPLOAD_PATH
 from aiodeepseek.types.exceptions import DeepSeekError
 from aiodeepseek.types.models import UploadedImage
 
-from .._config import _DEV_MODE
+from aiodeepseek.http._config import _DEV_MODE
 
 _UPLOAD_PENDING_STATUSES = {
     "PENDING",

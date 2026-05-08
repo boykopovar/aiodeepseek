@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Optional
+
+from aiodeepseek.http._config import _DEV_MODE
+import time
+
 try:
     from aiodeepseek.pow._pow import solve as _cpp
 
@@ -17,7 +22,18 @@ try:
         Returns:
             The first valid nonce, or ``-1`` if none was found.
         """
-        return _cpp(base, challenge_hex, difficulty)
+
+        total_start: Optional[float] = None
+        if _DEV_MODE:
+            print(f"pow task: {base, challenge_hex, difficulty}")
+            total_start = time.perf_counter()
+
+        nonce: int = _cpp(base, challenge_hex, difficulty)
+
+        if total_start is not None:
+            print(f"\n[pow done {time.perf_counter() - total_start:.2f}s]")
+        return nonce
+
 
 except ImportError:
     raise

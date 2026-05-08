@@ -1,2 +1,3 @@
 aiohttp
 pybind11
+python-dotenv

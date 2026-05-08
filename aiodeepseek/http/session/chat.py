@@ -8,7 +8,7 @@ from aiodeepseek.data.constants import BASE_URL, COMPLETION_PATH, HEADERS
 from aiodeepseek.types.exceptions import DeepSeekError
 from aiodeepseek.types.models import UploadedImage
 
-from .._config import _DEV_MODE
+from aiodeepseek.http._config import _DEV_MODE
 from .._sse import _coerce_message_id, _extract_fragment, _extract_message_id
 from ...types.enums import ModelType
 
