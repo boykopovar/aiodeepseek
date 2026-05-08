@@ -23,8 +23,8 @@ def _build_ext() -> Extension:
     import pybind11
 
     return Extension(
-        "aiodeepseek._pow",
-        sources=["aiodeepseek/_pow.cpp"],
+        "aiodeepseek.pow._pow",
+        sources=["aiodeepseek/pow/_pow.cpp"],
         include_dirs=[pybind11.get_include()],
         language="c++",
         extra_compile_args=_extra_compile_args(),
