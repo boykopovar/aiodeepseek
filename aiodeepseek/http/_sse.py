@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import FrozenSet, Optional, Union, Dict
 
-_MESSAGE_ID_PATHS = frozenset({"message_id", "chat_message_id", "id", "response_message_id"})
+_MESSAGE_ID_PATHS: FrozenSet[str] = frozenset({"message_id", "chat_message_id", "id", "response_message_id"})
 
 
-def _extract_fragment(event: dict) -> str:
+def _extract_fragment(event: Dict) -> str:
     """Extract a text fragment from a single DeepSeek SSE event dict.
 
     The stream uses at least three event shapes to carry text:
-    an ``{"o": "APPEND", "v": "<fragment>"}`` patch operation, a bare
-    ``{"v": "<fragment>"}`` shorthand with no operation or path keys, and the
-    initial ``{"v": {"response": {"fragments": [...]}}}`` bulk object that
+    an ``{\"o\": \"APPEND\", \"v\": \"<fragment>\"}`` patch operation, a bare
+    ``{\"v\": \"<fragment>\"}`` shorthand with no operation or path keys, and the
+    initial ``{\"v\": {\"response\": {\"fragments\": [...]}}}`` bulk object that
     opens each turn.
 
     Args:
@@ -37,20 +37,19 @@ def _extract_fragment(event: dict) -> str:
     return ""
 
 
-def _extract_message_id(event: dict) -> Optional[str]:
+def _extract_message_id(event: Dict) -> Optional[str]:
     """Extract the assistant message id from a single DeepSeek SSE event dict.
 
     The stream delivers the message id in several different shapes depending
     on the event type.  The ``ready`` event carries it as a top-level
     ``response_message_id`` integer.  The initial bulk response object nests it
-    at ``v["response"]["message_id"]``.  Hypothetical JSON-patch events use
-    ``{"o": "SET", "p": "/message_id", "v": <id>}`` where the path may be an
+    at ``v[\"response\"][\"message_id\"]``.  Hypothetical JSON-patch events use
+    ``{\"o\": \"SET\", \"p\": \"/message_id\", \"v\": <id>}`` where the path may be an
     absolute JSON-pointer such as ``/chat_session_message/0/message_id``.
     All numeric ids are normalised to strings before being returned.
 
-    This API is reverse-engineered from the iOS client and has no public
-    schema contract, so all four lookup strategies are retained to guard
-    against format drift.
+    This API has no public schema contract, so all four lookup
+    strategies are retained to guard against format drift.
 
     Args:
         event: Parsed JSON object from one SSE ``data:`` line.

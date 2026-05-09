@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
-from typing import Optional
+from typing import Dict, Optional, Set
 
 import aiohttp
 
 from aiodeepseek.data.constants import BASE_URL, HEADERS, UPLOAD_PATH
-from aiodeepseek.http._config import _DEV_MODE
-from aiodeepseek.types.exceptions import DeepSeekError
-from aiodeepseek.types.models import UploadedImage
-from .chat import _ChatClient
+from aiodeepseek.log import _log, _log_request
+from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response
+from aiodeepseek.types.models._classes import UploadedImage
+from aiodeepseek.clients.chat import _ChatClient
 
-_UPLOAD_PENDING_STATUSES = {"PENDING", "PROCESSING", "UPLOADING", "PARSING"}
-_UPLOAD_POLL_INTERVAL = 0.5
-_UPLOAD_POLL_TIMEOUT = 30.0
+_UPLOAD_PENDING_STATUSES: Set[str] = {"PENDING", "PROCESSING", "UPLOADING", "PARSING"}
+_UPLOAD_POLL_INTERVAL: float = 0.5
+_UPLOAD_POLL_TIMEOUT: float = 30.0
 
 
 class _FilesClient(_ChatClient):
@@ -42,38 +41,20 @@ class _FilesClient(_ChatClient):
         """
         assert self._session is not None, "Session not started"
         effective = self._effective_timeout(timeout)
+        url = BASE_URL + "/api/v0/file/fetch_files"
+        req_headers: Dict[str, str] = {**HEADERS, "Authorization": f"Bearer {token}"}
 
-        if _DEV_MODE:
-            print(f"\n[DEV] >>> FETCH FILE  file_id={file_id}")
+        _log_request("FETCH FILE REQUEST", url, req_headers, {"file_id": file_id})
 
         async with self._session.get(
-            BASE_URL + "/api/v0/file/fetch_files",
+            url,
             params={"file_ids": file_id},
-            headers={**HEADERS, "Authorization": f"Bearer {token}"},
+            headers=req_headers,
             timeout=self._aiohttp_timeout(effective),
         ) as resp:
-            raw = await resp.text()
+            body = await self._read_json(resp, "FETCH FILE RESPONSE")
 
-            if _DEV_MODE:
-                print(f"[DEV] <<< FETCH FILE RESPONSE  status={resp.status}")
-                print("[DEV]     BODY:")
-                print(raw)
-
-        if resp.status != 200:
-            raise DeepSeekError(
-                f"fetch_files HTTP {resp.status}: {raw[:400]}",
-                resp.status,
-            )
-
-        try:
-            body = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise DeepSeekError(
-                f"fetch_files returned non-JSON body: {raw[:400]}"
-            ) from exc
-
-        if body.get("code") != 0:
-            raise DeepSeekError(f"fetch_files failed: {body}")
+        raise_for_api_response("fetch_files", body)
 
         files = body["data"]["biz_data"]["files"]
         if not files:
@@ -102,14 +83,13 @@ class _FilesClient(_ChatClient):
         Raises:
             DeepSeekError: If the file reaches an error status or the poll timeout expires.
         """
-        deadline = time.monotonic() + poll_timeout
+        deadline: float = time.monotonic() + poll_timeout
 
         while True:
             meta = await self._fetch_file(token, file_id)
             status: str = meta.get("status", "")
 
-            if _DEV_MODE:
-                print(f"[DEV] file {file_id} status={status!r}")
+            _log.debug("file %s status=%r", file_id, status)
 
             if status not in _UPLOAD_PENDING_STATUSES:
                 if "ERROR" in status.upper() or "FAIL" in status.upper():
@@ -163,8 +143,8 @@ class _FilesClient(_ChatClient):
         pow_header = await self._build_pow_header(token, UPLOAD_PATH, timeout)
         effective = self._effective_timeout(timeout)
 
-        base_headers = {k: v for k, v in HEADERS.items() if k != "Content-Type"}
-        headers = {
+        base_headers: Dict[str, str] = {k: v for k, v in HEADERS.items() if k != "Content-Type"}
+        req_headers: Dict[str, str] = {
             **base_headers,
             "Accept": "application/json",
             "Authorization": f"Bearer {token}",
@@ -177,41 +157,31 @@ class _FilesClient(_ChatClient):
         form = aiohttp.FormData()
         form.add_field("file", data, filename=filename, content_type=mime_type)
 
-        if _DEV_MODE:
-            print("\n[DEV] >>> UPLOAD REQUEST")
-            print(f"[DEV]     URL    : {BASE_URL + UPLOAD_PATH}")
-            print(f"[DEV]     size={len(data)} bytes  mime={mime_type}  file={filename}")
+        _log_request(
+            "UPLOAD REQUEST",
+            BASE_URL + UPLOAD_PATH,
+            req_headers,
+            {"size": len(data), "mime": mime_type, "filename": filename},
+        )
 
         async with self._session.post(
             BASE_URL + UPLOAD_PATH,
             data=form,
-            headers=headers,
+            headers=req_headers,
             timeout=self._aiohttp_timeout(effective),
         ) as resp:
-            if resp.status != 200:
-                raw = await resp.read()
-                raise DeepSeekError(
-                    f"upload HTTP {resp.status}: {raw.decode('utf-8', errors='replace')[:400]}",
-                    resp.status,
-                )
-            body = await resp.json()
+            body = await self._read_json(resp, "UPLOAD RESPONSE")
 
-        if _DEV_MODE:
-            print(f"[DEV] <<< UPLOAD RESPONSE: {body}")
-
-        if body.get("code") != 0:
-            raise DeepSeekError(f"upload failed: {body}")
+        raise_for_api_response("upload", body)
 
         biz = body["data"]["biz_data"]
         file_id: str = biz["id"]
         status: str = biz.get("status", "")
 
         if status in _UPLOAD_PENDING_STATUSES:
-            if _DEV_MODE:
-                print(f"[DEV] file {file_id} is {status!r} — polling …")
+            _log.debug("file %s is %r — polling …", file_id, status)
             status = await self._wait_for_file(token, file_id)
-            if _DEV_MODE:
-                print(f"[DEV] file {file_id} ready: status={status!r}")
+            _log.debug("file %s ready: status=%r", file_id, status)
 
         return UploadedImage(
             file_id=file_id,

@@ -1,23 +1,22 @@
-from __future__ import annotations
-
 import base64
 import json
 import random
 import time
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import aiohttp
 
 from aiodeepseek.data.constants import BASE_URL, HEADERS
 from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.pow.pow import solve_pow
-from aiodeepseek.types.exceptions import DeepSeekError
-from .base import _BaseClient
+from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response
+from aiodeepseek.clients.base import _BaseClient
+from aiodeepseek.log import _log_request
 
-_REGISTER_PATH = "/api/v0/users/register"
+_REGISTER_PATH: str = "/api/v0/users/register"
 
 
-def _make_guest_headers() -> dict[str, str]:
+def _make_guest_headers() -> Dict[str, str]:
     offset = -time.timezone if time.daylight == 0 else -time.altzone
     return {
         **HEADERS,
@@ -34,7 +33,7 @@ class _AuthClient(_BaseClient):
     """
 
     @staticmethod
-    def _extract_token(data: dict) -> str:
+    def _extract_token(data: Dict) -> str:
         """Extract the bearer token string from a login or register API response.
 
         Args:
@@ -68,22 +67,22 @@ class _AuthClient(_BaseClient):
         Raises:
             DeepSeekError: If the API returns a non-zero status code.
         """
+        url = BASE_URL + "/api/v0/users/login"
+        req_body = {
+            "email": email,
+            "password": password,
+            "device_id": device_id or get_device_id(),
+            "os": "ios",
+        }
+
+        _log_request("LOGIN REQUEST", url, HEADERS, req_body)
+
         connector = aiohttp.TCPConnector(ssl=False)
         async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.post(
-                BASE_URL + "/api/v0/users/login",
-                json={
-                    "email": email,
-                    "password": password,
-                    "device_id": device_id or get_device_id(),
-                    "os": "ios",
-                },
-                headers=HEADERS,
-            ) as resp:
-                data = await resp.json()
+            async with session.post(url, json=req_body, headers=HEADERS) as resp:
+                data = await cls._read_json(resp, "LOGIN RESPONSE")
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"login failed: {data}")
+        raise_for_api_response("login", data)
 
         return cls._extract_token(data)
 
@@ -94,7 +93,7 @@ class _AuthClient(_BaseClient):
         *,
         locale: str = "en_US",
         device_id: Optional[str] = None,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """Send a registration verification code to *email*.
 
         Args:
@@ -108,6 +107,7 @@ class _AuthClient(_BaseClient):
         Raises:
             DeepSeekError: If the API returns a non-zero status code.
         """
+        url = BASE_URL + "/api/v0/users/create_email_verification_code"
         headers = _make_guest_headers()
         body = {
             "email": email,
@@ -119,17 +119,14 @@ class _AuthClient(_BaseClient):
             "scenario": "register",
         }
 
+        _log_request("SEND REG CODE REQUEST", url, headers, body)
+
         connector = aiohttp.TCPConnector(ssl=False)
         async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.post(
-                BASE_URL + "/api/v0/users/create_email_verification_code",
-                json=body,
-                headers=headers,
-            ) as resp:
-                data: dict = await resp.json()
+            async with session.post(url, json=body, headers=headers) as resp:
+                data = await cls._read_json(resp, "SEND REG CODE RESPONSE")
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"send_reg_code failed: {data}")
+        raise_for_api_response("send_reg_code", data)
 
         return data
 
@@ -183,24 +180,25 @@ class _AuthClient(_BaseClient):
         connector = aiohttp.TCPConnector(ssl=False)
         async with aiohttp.ClientSession(connector=connector) as session:
             guest_pow = await cls._fetch_guest_pow(session, base_headers)
-            headers = {**base_headers, "x-ds-guest-pow-response": guest_pow}
+            req_headers = {**base_headers, "x-ds-guest-pow-response": guest_pow}
+
+            _log_request("CONFIRM REG CODE REQUEST", BASE_URL + _REGISTER_PATH, req_headers, body)
 
             async with session.post(
                 BASE_URL + _REGISTER_PATH,
                 json=body,
-                headers=headers,
+                headers=req_headers,
             ) as resp:
-                data: dict = await resp.json()
+                data = await cls._read_json(resp, "CONFIRM REG CODE RESPONSE")
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"confirm_reg_code failed: {data}")
+        raise_for_api_response("confirm_reg_code", data)
 
         return cls._extract_token(data)
 
     @staticmethod
     async def _fetch_guest_pow(
         session: aiohttp.ClientSession,
-        headers: dict[str, str],
+        headers: Dict[str, str],
     ) -> str:
         """Fetch and solve a guest PoW challenge for the registration endpoint.
 
@@ -216,23 +214,23 @@ class _AuthClient(_BaseClient):
             DeepSeekError: If the challenge request fails or the solver does
                 not converge.
         """
-        async with session.post(
-            BASE_URL + "/api/v0/users/create_guest_challenge",
-            json={"target_path": _REGISTER_PATH},
-            headers=headers,
-        ) as resp:
-            data = await resp.json()
+        url = BASE_URL + "/api/v0/users/create_guest_challenge"
+        req_body = {"target_path": _REGISTER_PATH}
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"guest challenge failed: {data}")
+        _log_request("GUEST CHALLENGE REQUEST", url, headers, req_body)
+
+        async with session.post(url, json=req_body, headers=headers) as resp:
+            data = await _BaseClient._read_json(resp, "GUEST CHALLENGE RESPONSE")
+
+        raise_for_api_response("guest_challenge", data)
 
         ch = data["data"]["biz_data"]["guest_challenge"]
-        salt = ch["salt"]
-        expire_at = ch["expire_at"]
-        difficulty = int(ch["difficulty"])
-        challenge = ch["challenge"]
+        salt: str = ch["salt"]
+        expire_at: str = ch["expire_at"]
+        difficulty: int = int(ch["difficulty"])
+        challenge: str = ch["challenge"]
 
-        nonce = solve_pow(f"{salt}_{expire_at}_", challenge, difficulty)
+        nonce: int = solve_pow(f"{salt}_{expire_at}_", challenge, difficulty)
         if nonce < 0:
             raise DeepSeekError("failed to solve guest pow")
 

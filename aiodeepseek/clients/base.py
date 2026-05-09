@@ -4,14 +4,16 @@ import base64
 import json
 import random
 import time
-from typing import Optional
+from typing import Dict, Optional
 
 import aiohttp
 
 from aiodeepseek.data.constants import BASE_URL, COMPLETION_PATH, HEADERS, UPLOAD_PATH
 from aiodeepseek.data.device_ids import get_device_id
+from aiodeepseek.http._config import _DEV_MODE
+from aiodeepseek.log import _log, _log_request, _log_response
 from aiodeepseek.pow.pow import solve_pow
-from aiodeepseek.types.exceptions import DeepSeekError
+from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response
 
 
 class _BaseClient:
@@ -34,8 +36,8 @@ class _BaseClient:
         timeout: Optional[float] = None,
         device_id: Optional[str] = None,
     ) -> None:
-        self._timeout = timeout
-        self._device_id = device_id or get_device_id()
+        self._timeout: Optional[float] = timeout
+        self._device_id: str = device_id or get_device_id()
         self._session: Optional[aiohttp.ClientSession] = None
         self._rangers_id: str = str(random.randint(10**18, 10**19 - 1))
 
@@ -47,7 +49,7 @@ class _BaseClient:
         """Return *timeout* when given, otherwise fall back to the instance default."""
         return timeout if timeout is not None else self._timeout
 
-    def _base_headers(self) -> dict[str, str]:
+    def _base_headers(self) -> Dict[str, str]:
         """Return request headers extended with dynamic per-instance values."""
         offset = -time.timezone if time.daylight == 0 else -time.altzone
         return {
@@ -68,12 +70,51 @@ class _BaseClient:
             await self._session.close()
             self._session = None
 
-    async def __aenter__(self) -> "_BaseClient":
+    async def __aenter__(self) -> _BaseClient:
         await self.open()
         return self
 
     async def __aexit__(self, *_: object) -> None:
         await self.close()
+
+    @staticmethod
+    async def _read_json(resp: aiohttp.ClientResponse, label: str) -> dict:
+        """Read the response body, log it when DEV_MODE is on, and return parsed JSON.
+
+        In DEV_MODE reads the raw text so it can be logged verbatim before parsing.
+        Outside DEV_MODE reads text only on non-200 status (for the error message)
+        and delegates parsing to ``aiohttp`` otherwise — avoiding an unnecessary
+        ``resp.text()`` call on every successful response.
+
+        Must be awaited inside the response context manager.
+
+        Args:
+            resp: Active ``aiohttp.ClientResponse`` inside its context manager.
+            label: Short tag passed to :func:`_log_response` as the ``<<<`` banner.
+
+        Returns:
+            Parsed JSON response body as a dict.
+
+        Raises:
+            DeepSeekError: On non-200 HTTP status or a non-JSON response body.
+        """
+        if _DEV_MODE:
+            raw = await resp.text()
+            _log_response(label, resp.status, resp.headers, raw)
+            if resp.status != 200:
+                raise DeepSeekError(f"HTTP {resp.status}: {raw[:400]}", resp.status)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise DeepSeekError(f"{label} non-JSON body: {raw[:400]}") from exc
+        else:
+            if resp.status != 200:
+                raw = await resp.text()
+                raise DeepSeekError(f"HTTP {resp.status}: {raw[:400]}", resp.status)
+            try:
+                return await resp.json(content_type=None)
+            except json.JSONDecodeError as exc:
+                raise DeepSeekError(f"{label} non-JSON response") from exc
 
     async def create_chat_session(
         self,
@@ -94,17 +135,21 @@ class _BaseClient:
         """
         assert self._session is not None, "Session not started"
         effective = self._effective_timeout(timeout)
+        url = BASE_URL + "/api/v0/chat_session/create"
+        req_headers: Dict[str, str] = {**HEADERS, "Authorization": f"Bearer {token}"}
+        req_body: Dict[str, int] = {"character_id": 1}
+
+        _log_request("CREATE SESSION REQUEST", url, req_headers, req_body)
 
         async with self._session.post(
-            BASE_URL + "/api/v0/chat_session/create",
-            json={"character_id": 1},
-            headers={**HEADERS, "Authorization": f"Bearer {token}"},
+            url,
+            json=req_body,
+            headers=req_headers,
             timeout=self._aiohttp_timeout(effective),
         ) as resp:
-            data = await resp.json()
+            data = await self._read_json(resp, "CREATE SESSION RESPONSE")
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"create_session failed: {data}")
+        raise_for_api_response("create_session", data)
 
         return data["data"]["biz_data"]["chat_session"]["id"]
 
@@ -130,17 +175,21 @@ class _BaseClient:
         """
         assert self._session is not None, "Session not started"
         effective = self._effective_timeout(timeout)
+        url = BASE_URL + "/api/v0/chat/create_pow_challenge"
+        req_headers: Dict[str, str] = {**HEADERS, "Authorization": f"Bearer {token}"}
+        req_body: Dict[str, str] = {"target_path": target_path}
+
+        _log_request("POW CHALLENGE REQUEST", url, req_headers, req_body)
 
         async with self._session.post(
-            BASE_URL + "/api/v0/chat/create_pow_challenge",
-            json={"target_path": target_path},
-            headers={**HEADERS, "Authorization": f"Bearer {token}"},
+            url,
+            json=req_body,
+            headers=req_headers,
             timeout=self._aiohttp_timeout(effective),
         ) as resp:
-            data = await resp.json()
+            data = await self._read_json(resp, "POW CHALLENGE RESPONSE")
 
-        if data.get("code") != 0:
-            raise DeepSeekError(f"pow challenge failed: {data}")
+        raise_for_api_response("pow_challenge", data)
 
         ch = data["data"]["biz_data"]
         return ch.get("challenge", ch)
@@ -168,12 +217,12 @@ class _BaseClient:
             DeepSeekError: If the solver does not converge within the difficulty limit.
         """
         ch = await self._get_pow_challenge(token, target_path, timeout)
-        salt = ch["salt"]
-        expire_at = ch["expire_at"]
-        difficulty = int(ch["difficulty"])
-        challenge_hex = ch["challenge"]
+        salt: str = ch["salt"]
+        expire_at: str = ch["expire_at"]
+        difficulty: int = int(ch["difficulty"])
+        challenge_hex: str = ch["challenge"]
 
-        nonce = solve_pow(f"{salt}_{expire_at}_", challenge_hex, difficulty)
+        nonce: int = solve_pow(f"{salt}_{expire_at}_", challenge_hex, difficulty)
         if nonce < 0:
             raise DeepSeekError("PoW not solved within difficulty limit")
 

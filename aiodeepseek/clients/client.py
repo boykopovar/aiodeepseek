@@ -5,7 +5,8 @@ from typing import AsyncIterator, Optional, Union
 
 from aiodeepseek.conversation import Conversation
 from aiodeepseek.types.enums import ModelType
-from aiodeepseek.types.models import DeepSeekTurnResult, UploadedImage, load_image
+from aiodeepseek.types.models._classes import DeepSeekTurnResult, UploadedImage
+from aiodeepseek.types.models._model_utils import load_image
 from .files import _FilesClient
 
 ImageSource = Union[bytes, Path]

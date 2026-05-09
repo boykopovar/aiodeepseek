@@ -1,7 +1,12 @@
-from enum import StrEnum
+from __future__ import annotations
+
+from enum import Enum
 
 
-class ModelType(StrEnum):
+class ModelType(str, Enum):
     DEFAULT = "default"
     EXPERT = "expert"
     VISION = "vision"
+
+    def __str__(self) -> str:
+        return self.value

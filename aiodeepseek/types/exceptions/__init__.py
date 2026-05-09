@@ -1,0 +1,49 @@
+from __future__ import annotations
+
+from aiodeepseek.types.exceptions._classes import (
+    AioDeepSeekError,
+    AuthorizationError,
+    DeepSeekAPIError,
+    DeepSeekBizError,
+    DeepSeekError,
+    InvalidToken,
+    VisionUnavailableError,
+    WrongCredentialsError,
+    _API_ERROR_REGISTRY,
+    _API_ERROR_SPECIFIC_REGISTRY,
+    _BIZ_ERROR_REGISTRY,
+    _BIZ_ERROR_SPECIFIC_REGISTRY,
+    _SSE_HINT_REGISTRY,
+    _register_api_error,
+    _register_api_error_specific,
+    _register_biz_error,
+    _register_biz_error_specific,
+    _register_sse_hint,
+)
+from aiodeepseek.types.exceptions._recognition import (
+    raise_for_api_response,
+    raise_for_sse_hint,
+)
+
+__all__ = [
+    "AioDeepSeekError",
+    "DeepSeekError",
+    "DeepSeekAPIError",
+    "DeepSeekBizError",
+    "AuthorizationError",
+    "InvalidToken",
+    "VisionUnavailableError",
+    "WrongCredentialsError",
+    "raise_for_api_response",
+    "raise_for_sse_hint",
+    "_API_ERROR_REGISTRY",
+    "_API_ERROR_SPECIFIC_REGISTRY",
+    "_BIZ_ERROR_REGISTRY",
+    "_BIZ_ERROR_SPECIFIC_REGISTRY",
+    "_SSE_HINT_REGISTRY",
+    "_register_api_error",
+    "_register_api_error_specific",
+    "_register_biz_error",
+    "_register_biz_error_specific",
+    "_register_sse_hint",
+]

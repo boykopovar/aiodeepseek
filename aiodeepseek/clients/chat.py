@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import json
-import pprint
-from typing import AsyncIterator, Optional, Tuple
+from typing import AsyncIterator, Dict, Optional, Tuple
 
 from aiodeepseek.data.constants import BASE_URL, COMPLETION_PATH, HEADERS
 from aiodeepseek.http._config import _DEV_MODE
 from aiodeepseek.http._sse import _coerce_message_id, _extract_fragment, _extract_message_id
+from aiodeepseek.log import _log, _log_request
 from aiodeepseek.types.enums import ModelType
-from aiodeepseek.types.exceptions import DeepSeekError
-from aiodeepseek.types.models import UploadedImage
-from .auth import _AuthClient
+from aiodeepseek.types.exceptions import DeepSeekError, raise_for_sse_hint
+from aiodeepseek.types.models._classes import UploadedImage
+from aiodeepseek.clients.auth import _AuthClient
 
 
 class _ChatClient(_AuthClient):
@@ -45,21 +45,21 @@ class _ChatClient(_AuthClient):
             ``(accumulated_text, message_id)`` tuples.
 
         Raises:
-            DeepSeekError: On HTTP error or failed PoW.
+            DeepSeekError: On HTTP error, failed PoW, or fatal SSE hint event.
         """
         assert self._session is not None, "Session not started"
 
         pow_header = await self._build_pow_header(token, COMPLETION_PATH, timeout)
         effective = self._effective_timeout(timeout)
 
-        headers = {
+        headers: Dict[str, str] = {
             **HEADERS,
             "Authorization": f"Bearer {token}",
             "Accept": "text/event-stream",
             "X-DS-PoW-Response": pow_header,
         }
 
-        body = {
+        body: dict = {
             "chat_session_id": session_id,
             "parent_message_id": _coerce_message_id(parent_message_id),
             "prompt": prompt,
@@ -71,17 +71,10 @@ class _ChatClient(_AuthClient):
             "model_type": model,
         }
 
-        if _DEV_MODE:
-            print("\n[DEV] >>> REQUEST")
-            print(f"[DEV]     URL    : {BASE_URL + COMPLETION_PATH}")
-            print("[DEV]     HEADERS:")
-            for k, v in headers.items():
-                print(f"[DEV]       {k}: {v[:120]}")
-            print("[DEV]     BODY   :")
-            pprint.pprint(body, width=120, indent=4)
+        _log_request("STREAM CHAT REQUEST", BASE_URL + COMPLETION_PATH, headers, body)
 
-        accumulated = ""
-        last_yielded = ""
+        accumulated: str = ""
+        last_yielded: str = ""
         message_id: Optional[str] = None
 
         async with self._session.post(
@@ -91,52 +84,69 @@ class _ChatClient(_AuthClient):
             timeout=self._aiohttp_timeout(effective),
         ) as resp:
             if _DEV_MODE:
-                print(f"\n[DEV] <<< RESPONSE  status={resp.status}")
-                print("[DEV]     HEADERS:")
+                _log.debug("<<< STREAM CHAT RESPONSE  status=%s", resp.status)
+                _log.debug("    HEADERS:")
                 for k, v in resp.headers.items():
-                    print(f"[DEV]       {k}: {v}")
+                    _log.debug("      %s: %s", k, v)
 
             if resp.status != 200:
-                raw = await resp.read()
+                raw = await resp.text()
+                _log.debug("    BODY:")
+                _log.debug("%s", raw)
                 raise DeepSeekError(
-                    f"HTTP {resp.status}: {raw.decode('utf-8', errors='replace')[:400]}",
+                    f"HTTP {resp.status}: {raw[:400]}",
                     resp.status,
                 )
 
+            current_event: str = "message"
+
             async for raw_line in resp.content:
-                line = raw_line.decode("utf-8", errors="replace").strip()
+                line: str = raw_line.decode("utf-8", errors="replace").strip()
 
                 if _DEV_MODE and line:
-                    print(f"[DEV] SSE: {line}")
+                    _log.debug("SSE: %s", line)
 
-                if not line.startswith("data:"):
+                if line.startswith("event:"):
+                    current_event = line[6:].strip()
                     continue
 
-                data_str = line[5:].strip()
+                if not line.startswith("data:"):
+                    current_event = "message"
+                    continue
+
+                data_str: str = line[5:].strip()
                 if not data_str or data_str == "[DONE]":
+                    current_event = "message"
                     continue
 
                 try:
                     event = json.loads(data_str)
                 except json.JSONDecodeError:
+                    current_event = "message"
                     continue
 
-                fragment = _extract_fragment(event)
-                updated = False
+                if current_event == "hint" and isinstance(event, dict) and event.get("type") == "error":
+                    raise_for_sse_hint(event)
+
+                current_event = "message"
+
+                fragment: str = _extract_fragment(event)
+                updated: bool = False
 
                 if fragment:
                     accumulated += fragment
                     updated = True
 
                 if message_id is None:
-                    new_mid = _extract_message_id(event)
-                    if new_mid is not None and _DEV_MODE:
-                        print(f"[DEV] message_id extracted: {new_mid!r}  (from event: {event})")
+                    new_mid: Optional[str] = _extract_message_id(event)
+                    if new_mid is not None:
+                        _log.debug(
+                            "message_id extracted: %r  (from event: %r)", new_mid, event
+                        )
                     message_id = new_mid
 
                 if updated and accumulated != last_yielded:
                     last_yielded = accumulated
                     yield accumulated, message_id
 
-        if _DEV_MODE:
-            print(f"\n[DEV] stream done — final message_id={message_id!r}")
+        _log.debug("stream done — final message_id=%r", message_id)

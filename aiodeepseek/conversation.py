@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, AsyncIterator, Optional
 
-from aiodeepseek.types.models import DeepSeekTurnResult, UploadedImage
+from aiodeepseek.types.models._classes import DeepSeekTurnResult, UploadedImage
 
 if TYPE_CHECKING:
     from aiodeepseek.clients.client import DeepSeekClient
