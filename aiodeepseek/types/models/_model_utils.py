@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import struct
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 
 
 def _detect_mime(data: bytes) -> str:
@@ -59,7 +59,7 @@ def _jpeg_dimensions(data: bytes) -> Tuple[int, int]:
     return 0, 0
 
 
-def load_image(source: ImageSource) -> Tuple[bytes, str, int, int]:
+def load_image(source: Union[bytes, Path]) -> Tuple[bytes, str, int, int]:
     """Load image data from a path or raw bytes and extract metadata.
 
     Args:

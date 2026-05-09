@@ -1,15 +1,11 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import AsyncIterator, Optional, Union
 
 from aiodeepseek.conversation import Conversation
 from aiodeepseek.types.enums import ModelType
-from aiodeepseek.types.models._classes import DeepSeekTurnResult, UploadedImage
+from aiodeepseek.types.models.classes import DeepSeekTurnResult, UploadedImage
 from aiodeepseek.types.models._model_utils import load_image
-from .files import _FilesClient
-
-ImageSource = Union[bytes, Path]
+from aiodeepseek.clients.files import _FilesClient
 
 
 class DeepSeekClient(_FilesClient):
@@ -82,7 +78,7 @@ class DeepSeekClient(_FilesClient):
 
     async def upload_image(
         self,
-        source: ImageSource,
+        source: Union[bytes, Path],
         *,
         filename: Optional[str] = None,
         timeout: Optional[float] = None,
@@ -130,7 +126,7 @@ class DeepSeekClient(_FilesClient):
         self,
         prompt: str,
         *,
-        image: Optional[UploadedImage] = None,
+        image: Optional[Union[UploadedImage, bytes, Path]] = None,
         model: Optional[ModelType] = None,
         timeout: Optional[float] = None,
         parent_message_id: Optional[str] = None,
@@ -152,6 +148,9 @@ class DeepSeekClient(_FilesClient):
         resolved_model = model if model is not None else self._default_model
         text = ""
         message_id: Optional[str] = None
+
+        if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
+            image = await self.upload_image(image)
 
         async for cumulative, mid in self.stream_chat(
             self._token,
@@ -176,7 +175,7 @@ class DeepSeekClient(_FilesClient):
         self,
         prompt: str,
         *,
-        image: Optional[UploadedImage] = None,
+        image: Optional[Union[UploadedImage, bytes, Path]] = None,
         model: Optional[ModelType] = None,
         timeout: Optional[float] = None,
         parent_message_id: Optional[str] = None,
@@ -197,6 +196,9 @@ class DeepSeekClient(_FilesClient):
             Cumulative assistant text — each value is the full response so far.
         """
         resolved_model = model if model is not None else self._default_model
+
+        if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
+            image = await self.upload_image(image)
 
         async for cumulative, _ in self.stream_chat(
             self._token,

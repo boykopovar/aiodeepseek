@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Dict
 
 from dotenv import load_dotenv
 
@@ -16,7 +17,7 @@ async def main() -> None:
     email = os.getenv("DEEPSEEK_EMAIL")
     password = os.getenv("DEEPSEEK_PASSWORD")
 
-    kwargs: dict = {}
+    kwargs: Dict = {}
     if token:
         kwargs["token"] = token
     elif email and password:
@@ -44,13 +45,12 @@ async def main() -> None:
         print("Answer: ", end="", flush=True)
 
         last_len = 0
-        t1 = time.perf_counter()
         async for chunk in client.ask_stream(question, image=img):
             new_part = chunk[last_len:]
             print(new_part, end="", flush=True)
             last_len = len(chunk)
 
-        print(f"\n[done {time.perf_counter() - t1:.2f}s]")
+        print(f"\n[done {time.perf_counter() - t0:.2f}s]")
 
 
 if __name__ == "__main__":

@@ -1,2 +1,1 @@
 include aiodeepseek/_pow.cpp
-include aiodeepseek/_pow_py.py

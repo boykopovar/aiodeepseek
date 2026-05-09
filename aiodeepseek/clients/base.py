@@ -8,12 +8,13 @@ from typing import Dict, Optional
 
 import aiohttp
 
-from aiodeepseek.data.constants import BASE_URL, COMPLETION_PATH, HEADERS, UPLOAD_PATH
+from aiodeepseek.data.constants import BASE_URL, COMPLETION_PATH, HEADERS
 from aiodeepseek.data.device_ids import get_device_id
 from aiodeepseek.http._config import _DEV_MODE
-from aiodeepseek.log import _log, _log_request, _log_response
+from aiodeepseek.log import _log_request, _log_response
 from aiodeepseek.pow.pow import solve_pow
 from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response
+from aiodeepseek.types.exceptions._classes import PowNotSolvedError
 
 
 class _BaseClient:
@@ -224,7 +225,14 @@ class _BaseClient:
 
         nonce: int = solve_pow(f"{salt}_{expire_at}_", challenge_hex, difficulty)
         if nonce < 0:
-            raise DeepSeekError("PoW not solved within difficulty limit")
+            raise PowNotSolvedError(
+                salt=salt,
+                expire_at=expire_at,
+                difficulty=difficulty,
+                challenge=challenge_hex,
+                algorithm=ch.get("algorithm", ""),
+                signature=ch.get("signature", ""),
+            )
 
         payload = json.dumps(
             {

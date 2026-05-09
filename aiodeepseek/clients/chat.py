@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 from typing import AsyncIterator, Dict, Optional, Tuple
 
@@ -9,7 +7,7 @@ from aiodeepseek.http._sse import _coerce_message_id, _extract_fragment, _extrac
 from aiodeepseek.log import _log, _log_request
 from aiodeepseek.types.enums import ModelType
 from aiodeepseek.types.exceptions import DeepSeekError, raise_for_sse_hint
-from aiodeepseek.types.models._classes import UploadedImage
+from aiodeepseek.types.models.classes import UploadedImage
 from aiodeepseek.clients.auth import _AuthClient
 
 
@@ -59,7 +57,7 @@ class _ChatClient(_AuthClient):
             "X-DS-PoW-Response": pow_header,
         }
 
-        body: dict = {
+        body: Dict = {
             "chat_session_id": session_id,
             "parent_message_id": _coerce_message_id(parent_message_id),
             "prompt": prompt,

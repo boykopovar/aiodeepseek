@@ -8,12 +8,14 @@ import aiohttp
 
 from aiodeepseek.data.constants import BASE_URL, HEADERS, UPLOAD_PATH
 from aiodeepseek.log import _log, _log_request
-from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response
-from aiodeepseek.types.models._classes import UploadedImage
+from aiodeepseek.types.exceptions import DeepSeekError, raise_for_api_response, EmptyUploadedFileError
+from aiodeepseek.types.models.classes import UploadedImage
 from aiodeepseek.clients.chat import _ChatClient
 
+from aiodeepseek.http._config import _DEV_MODE
+
 _UPLOAD_PENDING_STATUSES: Set[str] = {"PENDING", "PROCESSING", "UPLOADING", "PARSING"}
-_UPLOAD_POLL_INTERVAL: float = 0.5
+_UPLOAD_POLL_INTERVAL: float = 2
 _UPLOAD_POLL_TIMEOUT: float = 30.0
 
 
@@ -89,9 +91,14 @@ class _FilesClient(_ChatClient):
             meta = await self._fetch_file(token, file_id)
             status: str = meta.get("status", "")
 
-            _log.debug("file %s status=%r", file_id, status)
+            if _DEV_MODE:
+                _log.debug("file %s status=%r", file_id, status)
 
             if status not in _UPLOAD_PENDING_STATUSES:
+                if status == "CONTENT_EMPTY":
+                    raise EmptyUploadedFileError(
+                        f"Uploaded file {file_id!r} was rejected by DeepSeek: CONTENT_EMPTY"
+                    )
                 if "ERROR" in status.upper() or "FAIL" in status.upper():
                     raise DeepSeekError(
                         f"File processing failed: status={status!r}  meta={meta}"

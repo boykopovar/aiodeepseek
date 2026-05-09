@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, AsyncIterator, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, AsyncIterator, Optional, Union
 
-from aiodeepseek.types.models._classes import DeepSeekTurnResult, UploadedImage
+from aiodeepseek.types.models.classes import DeepSeekTurnResult, UploadedImage
 
 if TYPE_CHECKING:
     from aiodeepseek.clients.client import DeepSeekClient
@@ -25,7 +26,7 @@ class Conversation:
         client: The :class:`~aiodeepseek.DeepSeekClient` to delegate requests to.
     """
 
-    def __init__(self, client: "DeepSeekClient") -> None:
+    def __init__(self, client: DeepSeekClient) -> None:
         self._client = client
         self._parent_message_id: Optional[str] = None
 
@@ -42,10 +43,10 @@ class Conversation:
         self,
         prompt: str,
         *,
-        image: Optional[UploadedImage] = None,
+        image: Optional[Union[UploadedImage, bytes, Path]] = None,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
-    ) -> str:
+    ) -> DeepSeekTurnResult:
         """Send *prompt*, update conversation state, and return the reply text.
 
         Args:
@@ -58,6 +59,9 @@ class Conversation:
         Returns:
             The assistant's full response as a plain string.
         """
+        if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
+            image = await self._client.upload_image(image)
+
         result = await self._client.ask(
             prompt,
             image=image,
@@ -66,13 +70,13 @@ class Conversation:
             parent_message_id=self._parent_message_id,
         )
         self._apply_result(result)
-        return result.text
+        return result
 
     async def ask_stream(
         self,
         prompt: str,
         *,
-        image: Optional[UploadedImage] = None,
+        image: Optional[Union[UploadedImage, bytes, Path]] = None,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> AsyncIterator[str]:
@@ -91,6 +95,9 @@ class Conversation:
         """
         resolved_model = model if model is not None else self._client._default_model
         last_message_id: Optional[str] = None
+
+        if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
+            image = await self._client.upload_image(image)
 
         async for cumulative, mid in self._client.stream_chat(
             self._client._token,

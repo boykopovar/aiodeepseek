@@ -20,6 +20,36 @@ class DeepSeekError(AioDeepSeekError):
         self.status: Optional[int] = status
 
 
+class PowNotSolvedError(DeepSeekError):
+    """Raised when the PoW solver fails to find a nonce within the difficulty limit.
+
+    Attributes:
+        salt: Salt string received from the server.
+        expire_at: Challenge expiry timestamp.
+        difficulty: Maximum number of iterations the solver attempted.
+        challenge: Expected hash digest as a hex string.
+        algorithm: Hash algorithm name, e.g. ``"DeepSeekHashV1"``.
+        signature: Challenge signature from the server.
+    """
+
+    def __init__(
+            self,
+            salt: str,
+            expire_at: str,
+            difficulty: int,
+            challenge: str,
+            algorithm: str,
+            signature: str
+    ) -> None:
+        super().__init__(f"PoW not solved within difficulty limit ({difficulty})")
+        self.salt = salt
+        self.expire_at = expire_at
+        self.difficulty = difficulty
+        self.challenge = challenge
+        self.algorithm = algorithm
+        self.signature = signature
+
+
 class DeepSeekAPIError(DeepSeekError):
     """Raised when the DeepSeek JSON API returns a non-zero ``code`` field.
 
@@ -49,6 +79,8 @@ class DeepSeekBizError(DeepSeekError):
         self.biz_msg: str = biz_msg
         self.data: Optional[dict] = data
 
+class EmptyUploadedFileError(DeepSeekError):
+    """Raised when DeepSeek marks an uploaded file as invalid or empty."""
 
 _API_ERROR_REGISTRY: Dict[int, Type[DeepSeekAPIError]] = {}
 _API_ERROR_SPECIFIC_REGISTRY: List[Tuple[int, str, Type[DeepSeekAPIError]]] = []
@@ -153,3 +185,12 @@ class WrongCredentialsError(DeepSeekBizError):
 @_register_sse_hint("vision is temporarily unavailable")
 class VisionUnavailableError(DeepSeekError):
     """Raised when DeepSeek vision processing is temporarily unavailable."""
+
+@_register_biz_error_specific(9, "invalid ref file id")
+class InvalidRefFileIdError(DeepSeekBizError):
+    """Raised when an uploaded file cannot be attached to a chat request.
+
+    Usually indicates that the uploaded file is invalid, empty, still processing,
+    or rejected by DeepSeek file parsing backend.
+    """
+

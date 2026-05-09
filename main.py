@@ -49,7 +49,6 @@ async def main() -> None:
 
     async with DeepSeekClient(**kwargs) as client:
         conversation = client.new_conversation()
-
         while True:
             print_prompt()
 

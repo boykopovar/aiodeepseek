@@ -1,26 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
-ImageSource = Union[bytes, Path]
-
-@dataclass(frozen=True)
-class TurnResult:
-    """The complete result of a single DeepSeek conversation turn.
-
-    Attributes:
-        text: The assistant's full response text.
-        conversation_id: OpenAI conversation identifier.
-        parent_message_id: The message-id of the assistant reply.
-            Must be passed as ``parent_message_id`` in the next turn
-            so the model has correct threading context.
-    """
-
-    text: str
-    conversation_id: str
-    parent_message_id: str
 
 
 @dataclass(frozen=True)
