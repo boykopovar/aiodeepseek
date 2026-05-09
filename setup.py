@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import sys
+from typing import List
 
 from setuptools import Extension, setup
 
 
-def _extra_compile_args() -> list[str]:
+def _extra_compile_args() -> List[str]:
     if sys.platform == "win32":
         return [
             "/std:c++17",
@@ -23,7 +24,7 @@ def _extra_compile_args() -> list[str]:
     ]
 
 
-def _extra_link_args() -> list[str]:
+def _extra_link_args() -> List[str]:
     if sys.platform == "win32":
         return [
             "/LTCG",
@@ -49,4 +50,8 @@ def _build_ext() -> Extension:
 
 setup(
     ext_modules=[_build_ext()],
+    package_data={
+        "aiodeepseek.pow": ["*.pyi"],
+    },
+    include_package_data=True,
 )
