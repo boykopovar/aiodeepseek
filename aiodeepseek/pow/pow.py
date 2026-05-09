@@ -5,7 +5,7 @@ from typing import Optional
 from aiodeepseek.http._config import _DEV_MODE, _LOG_POW_TIME
 import time
 
-
+from aiodeepseek.log import _log_str
 from aiodeepseek.pow._pow import solve as _cpp
 
 def solve_pow(base: str, challenge_hex: str, difficulty: int) -> int:
@@ -25,13 +25,15 @@ def solve_pow(base: str, challenge_hex: str, difficulty: int) -> int:
 
     total_start: Optional[float] = None
     if _LOG_POW_TIME or _DEV_MODE:
-        print(f"pow task: {base, challenge_hex, difficulty}")
         total_start = time.perf_counter()
 
     nonce: int = _cpp(base, challenge_hex, difficulty)
 
     if total_start is not None:
-        print(f"\n[pow done {(time.perf_counter() - total_start) * 1000:.2f} ms]")
+        _log_str(
+            f"[pow done {(time.perf_counter() - total_start) * 1000:.2f} ms]: "
+            f"{base, challenge_hex, difficulty}"
+        )
     return nonce
 
 __all__ = ["solve_pow"]

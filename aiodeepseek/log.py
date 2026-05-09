@@ -3,20 +3,26 @@ from __future__ import annotations
 import logging
 import sys
 
-from aiodeepseek.http._config import _DEV_MODE
+from aiodeepseek.http._config import _DEV_MODE, _LOG_POW_TIME
 
 _log: logging.Logger = logging.getLogger("aiodeepseek")
 _log.propagate = False
 
-if _DEV_MODE:
-    _handler: logging.Handler = logging.StreamHandler(sys.stdout)
-    _handler.setLevel(logging.DEBUG)
-    _handler.setFormatter(logging.Formatter("[DEV] %(message)s"))
-    _log.addHandler(_handler)
-    _log.setLevel(logging.DEBUG)
-else:
-    _log.addHandler(logging.NullHandler())
+_handler: logging.Handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("[DEV] %(message)s"))
 
+if _DEV_MODE:
+    _handler.setLevel(logging.DEBUG)
+    _log.setLevel(logging.DEBUG)
+    _log.addHandler(_handler)
+
+elif _LOG_POW_TIME:
+    _handler.setLevel(logging.INFO)
+    _log.setLevel(logging.INFO)
+    _log.addHandler(_handler)
+
+def _log_str(msg: str) -> None:
+    _log.info(msg)
 
 def _log_request(label: str, url: str, headers: dict, body: object = None) -> None:
     """Emit a structured DEBUG entry for an outgoing HTTP request.
