@@ -165,13 +165,34 @@ static PowCtx build_ctx(const std::string& base, const std::string& hex) {
         B[22] = R4(A[14], 39);                                                                     \
         B[23] = R4(A[15], 41);                                                                     \
         B[24] = R4(A[21],  2);                                                                     \
-        for (int _y = 0; _y < 5; ++_y)                                                             \
-            for (int _x = 0; _x < 5; ++_x)                                                         \
-                A[_x + 5*_y] = _mm256_xor_si256(                                                   \
-                    B[_x + 5*_y],                                                                   \
-                    _mm256_andnot_si256(B[(_x+1)%5 + 5*_y], B[(_x+2)%5 + 5*_y]));                \
-        A[0] = _mm256_xor_si256(A[0],                                                              \
-                   _mm256_set1_epi64x(static_cast<int64_t>(RC[i])));                               \
+        A[ 0] = _mm256_xor_si256(B[ 0], _mm256_andnot_si256(B[ 1], B[ 2])); \
+        A[ 1] = _mm256_xor_si256(B[ 1], _mm256_andnot_si256(B[ 2], B[ 3])); \
+        A[ 2] = _mm256_xor_si256(B[ 2], _mm256_andnot_si256(B[ 3], B[ 4])); \
+        A[ 3] = _mm256_xor_si256(B[ 3], _mm256_andnot_si256(B[ 4], B[ 0])); \
+        A[ 4] = _mm256_xor_si256(B[ 4], _mm256_andnot_si256(B[ 0], B[ 1])); \
+        A[ 5] = _mm256_xor_si256(B[ 5], _mm256_andnot_si256(B[ 6], B[ 7])); \
+        A[ 6] = _mm256_xor_si256(B[ 6], _mm256_andnot_si256(B[ 7], B[ 8])); \
+        A[ 7] = _mm256_xor_si256(B[ 7], _mm256_andnot_si256(B[ 8], B[ 9])); \
+        A[ 8] = _mm256_xor_si256(B[ 8], _mm256_andnot_si256(B[ 9], B[ 5])); \
+        A[ 9] = _mm256_xor_si256(B[ 9], _mm256_andnot_si256(B[ 5], B[ 6])); \
+        A[10] = _mm256_xor_si256(B[10], _mm256_andnot_si256(B[11], B[12])); \
+        A[11] = _mm256_xor_si256(B[11], _mm256_andnot_si256(B[12], B[13])); \
+        A[12] = _mm256_xor_si256(B[12], _mm256_andnot_si256(B[13], B[14])); \
+        A[13] = _mm256_xor_si256(B[13], _mm256_andnot_si256(B[14], B[10])); \
+        A[14] = _mm256_xor_si256(B[14], _mm256_andnot_si256(B[10], B[11])); \
+        A[15] = _mm256_xor_si256(B[15], _mm256_andnot_si256(B[16], B[17])); \
+        A[16] = _mm256_xor_si256(B[16], _mm256_andnot_si256(B[17], B[18])); \
+        A[17] = _mm256_xor_si256(B[17], _mm256_andnot_si256(B[18], B[19])); \
+        A[18] = _mm256_xor_si256(B[18], _mm256_andnot_si256(B[19], B[15])); \
+        A[19] = _mm256_xor_si256(B[19], _mm256_andnot_si256(B[15], B[16])); \
+        A[20] = _mm256_xor_si256(B[20], _mm256_andnot_si256(B[21], B[22])); \
+        A[21] = _mm256_xor_si256(B[21], _mm256_andnot_si256(B[22], B[23])); \
+        A[22] = _mm256_xor_si256(B[22], _mm256_andnot_si256(B[23], B[24])); \
+        A[23] = _mm256_xor_si256(B[23], _mm256_andnot_si256(B[24], B[20])); \
+        A[24] = _mm256_xor_si256(B[24], _mm256_andnot_si256(B[20], B[21])); \
+        A[0] = _mm256_xor_si256(                                                             \
+                   A[0],                                                                     \
+                   _mm256_set1_epi64x(static_cast<int64_t>(RC[i])));                         \
     } while(0)
 
 static void keccak_f_4way(__m256i A[25]) {
