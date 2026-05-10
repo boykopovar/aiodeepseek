@@ -1,1 +1,1 @@
-include aiodeepseek/_pow.cpp
+recursive-include aiodeepseek *.cpp *.hpp *.h *.pyi

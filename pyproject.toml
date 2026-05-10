@@ -4,9 +4,36 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiodeepseek"
-version = "0.1.0"
+version = "0.1.1"
+description = "High-performance async Python client for the private DeepSeek API"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "boykopovar", email = "boykopovar@gmail.com" }
+]
 requires-python = ">=3.9"
 dependencies = ["aiohttp>=3.9"]
+
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Framework :: AsyncIO",
+]
+
+[project.urls]
+Homepage = "https://github.com/boykopovar/aiodeepseek"
+Documentation = "https://github.com/boykopovar/aiodeepseek#documentation"
+Issues = "https://github.com/boykopovar/aiodeepseek/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
