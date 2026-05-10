@@ -137,8 +137,8 @@ class _AuthClient(_BaseClient):
         password: str,
         code: str,
         *,
-        region: str = "BY",
-        locale: str = "ru",
+        region: str = "US",
+        locale: str = "en_US",
         device_id: Optional[str] = None,
     ) -> str:
         """Complete registration with the e-mail verification code and return a token.

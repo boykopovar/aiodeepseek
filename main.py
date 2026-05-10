@@ -19,12 +19,8 @@ async def stream_reply(conversation: Conversation, prompt: str) -> None:
 
     print("\nDeepSeek: ", end="", flush=True)
 
-    last_len = 0
-
     async for chunk in conversation.ask_stream(prompt):
-        new_part = chunk[last_len:]
-        print(new_part, end="", flush=True)
-        last_len = len(chunk)
+        print(chunk, end="", flush=True)
 
     print(f"\n[done {time.perf_counter() - total_start:.2f}s]")
 

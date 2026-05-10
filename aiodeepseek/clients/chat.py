@@ -15,20 +15,20 @@ class _ChatClient(_AuthClient):
     """Extends :class:`_AuthClient` with SSE-based chat streaming."""
 
     async def stream_chat(
-        self,
-        token: str,
-        session_id: str,
-        prompt: str,
-        model: ModelType = ModelType.DEFAULT,
-        timeout: Optional[float] = None,
-        parent_message_id: Optional[str] = None,
-        image: Optional[UploadedImage] = None,
+            self,
+            token: str,
+            session_id: str,
+            prompt: str,
+            model: ModelType = ModelType.DEFAULT,
+            timeout: Optional[float] = None,
+            parent_message_id: Optional[str] = None,
+            image: Optional[UploadedImage] = None,
+            cumulative: bool = True,
     ) -> AsyncIterator[Tuple[str, Optional[str]]]:
-        """Stream a single chat turn and yield ``(cumulative_text, message_id)`` pairs.
+        """Stream a single chat turn and yield text/message_id pairs.
 
         Fetches and solves a PoW challenge before each request, then consumes
-        the SSE response line by line.  Each yielded tuple contains the assistant
-        reply accumulated so far and the latest known assistant message id.
+        the SSE response line by line.
 
         Args:
             token: Valid bearer token.
@@ -38,9 +38,13 @@ class _ChatClient(_AuthClient):
             timeout: Per-call timeout override; falls back to the instance default.
             parent_message_id: Previous assistant message id for threading.
             image: Optional uploaded image attached to the request.
+            cumulative: Yield the full accumulated response on each chunk.
+                If ``False``, yields only newly generated text fragments.
 
         Yields:
-            ``(accumulated_text, message_id)`` tuples.
+            ``(text, message_id)`` tuples.
+            If ``cumulative=True``, ``text`` contains the full response so far.
+            If ``cumulative=False``, ``text`` contains only the latest fragment.
 
         Raises:
             DeepSeekError: On HTTP error, failed PoW, or fatal SSE hint event.
@@ -72,14 +76,13 @@ class _ChatClient(_AuthClient):
         _log_request("STREAM CHAT REQUEST", BASE_URL + COMPLETION_PATH, headers, body)
 
         accumulated: str = ""
-        last_yielded: str = ""
         message_id: Optional[str] = None
 
         async with self._session.post(
-            BASE_URL + COMPLETION_PATH,
-            json=body,
-            headers=headers,
-            timeout=self._aiohttp_timeout(effective),
+                BASE_URL + COMPLETION_PATH,
+                json=body,
+                headers=headers,
+                timeout=self._aiohttp_timeout(effective),
         ) as resp:
             if _DEV_MODE:
                 _log.debug("<<< STREAM CHAT RESPONSE  status=%s", resp.status)
@@ -123,28 +126,36 @@ class _ChatClient(_AuthClient):
                     current_event = "message"
                     continue
 
-                if current_event == "hint" and isinstance(event, dict) and event.get("type") == "error":
+                if (
+                        current_event == "hint"
+                        and isinstance(event, dict)
+                        and event.get("type") == "error"
+                ):
                     raise_for_sse_hint(event)
 
                 current_event = "message"
 
                 fragment: str = _extract_fragment(event)
-                updated: bool = False
-
-                if fragment:
-                    accumulated += fragment
-                    updated = True
 
                 if message_id is None:
                     new_mid: Optional[str] = _extract_message_id(event)
                     if new_mid is not None:
                         _log.debug(
-                            "message_id extracted: %r  (from event: %r)", new_mid, event
+                            "message_id extracted: %r  (from event: %r)",
+                            new_mid,
+                            event,
                         )
                     message_id = new_mid
 
-                if updated and accumulated != last_yielded:
-                    last_yielded = accumulated
-                    yield accumulated, message_id
+                if not fragment:
+                    continue
 
-        _log.debug("stream done — final message_id=%r", message_id)
+                accumulated += fragment
+
+                if cumulative:
+                    yield accumulated, message_id
+                else:
+                    yield fragment, message_id
+
+        if _DEV_MODE:
+            _log.debug("stream done — final message_id=%r", message_id)

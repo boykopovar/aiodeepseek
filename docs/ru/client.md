@@ -1,12 +1,5 @@
 # DeepSeekClient
 
-Главный класс библиотеки. Наследует полную цепочку:
-
-```
-_BaseClient → _AuthClient → _ChatClient → _FilesClient → DeepSeekClient
-```
-
----
 
 ## Конструктор
 
@@ -102,17 +95,31 @@ from aiodeepseek import DeepSeekClient
 
 async def main():
     async with DeepSeekClient(token="...") as client:
-        last = 0
         async for chunk in client.ask_stream("Объясни async/await"):
-            print(chunk[last:], end="", flush=True)
-            last = len(chunk)
+            print(chunk, end="", flush=True)
 
 asyncio.run(main())
 ```
 
-Стримит ответ. Каждый yielded-кусок - это **полный накопленный текст** на текущий момент.
+Стримит ответ.
 
-Принимает те же параметры, что и `ask`.
+По умолчанию каждый yielded-кусок содержит только новый фрагмент текста.
+
+Используйте `cumulative=True`, чтобы получать полный накопленный ответ на каждой итерации.
+
+```python
+async for chunk in client.ask_stream(
+    "Объясни async/await",
+    cumulative=True,
+):
+    print(chunk)
+```
+
+Принимает те же параметры, что и `ask`, плюс:
+
+| Параметр     | Тип    | Описание                                               |
+|--------------|--------|--------------------------------------------------------|
+| `cumulative` | `bool` | Возвращать накопленный текст вместо новых фрагментов   |
 
 ---
 
@@ -169,11 +176,11 @@ async def main():
 
 Отправляет код подтверждения на email для регистрации.
 
-| Параметр    | Тип           | Описание                        |
-|-------------|---------------|---------------------------------|
-| `email`     | `str`         | Email для регистрации           |
-| `locale`    | `str`         | Локаль (`"en_US"` по умолчанию) |
-| `device_id` | `str \| None` | Идентификатор устройства        |
+| Параметр    | Тип           | Описание                      |
+|-------------|---------------|-------------------------------|
+| `email`     | `str`         | Email для регистрации         |
+| `locale`    | `str`         | Язык (`"en_US"` по умолчанию) |
+| `device_id` | `str \| None` | Идентификатор устройства      |
 
 ### confirm_reg_code
 
@@ -191,14 +198,14 @@ async def main():
 
 Завершает регистрацию и возвращает Bearer-токен. Перед отправкой автоматически решает [PoW-задачу](pow.md).
 
-| Параметр    | Тип           | Описание                         |
-|-------------|---------------|----------------------------------|
-| `email`     | `str`         | Email                            |
-| `password`  | `str`         | Желаемый пароль                  |
-| `code`      | `str`         | Код из письма                    |
-| `region`    | `str`         | Код страны (`"BY"` по умолчанию) |
-| `locale`    | `str`         | Локаль (`"ru"` по умолчанию)     |
-| `device_id` | `str \| None` | Идентификатор устройства         |
+| Параметр    | Тип           | Описание                            |
+|-------------|---------------|-------------------------------------|
+| `email`     | `str`         | Email                               |
+| `password`  | `str`         | Желаемый пароль                     |
+| `code`      | `str`         | Код из письма                       |
+| `region`    | `str`         | Код страны (`"en_US"` по умолчанию) |
+| `locale`    | `str`         | Язык (`"ru"` по умолчанию)          |
+| `device_id` | `str \| None` | Идентификатор устройства            |
 
 ### fetch_token
 
@@ -207,6 +214,7 @@ from aiodeepseek import DeepSeekClient
 
 async def main():
     token = await DeepSeekClient.fetch_token("mymail@example.com", "password")
+    print(token)
 ```
 
 Выполняет логин и возвращает Bearer-токен. Не требует открытого экземпляра клиента.

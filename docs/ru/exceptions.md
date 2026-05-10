@@ -13,11 +13,11 @@ AioDeepSeekError
     ├── DeepSeekAPIError          (code != 0)
     │   ├── AuthorizationError    (code=40003)
     │   │   └── InvalidToken      (code=40003, msg contains "invalid token")
-    │   └── (другие коды API)
+    │   └── (other API codes)
     ├── DeepSeekBizError          (code=0, biz_code != 0)
     │   ├── WrongCredentialsError (biz_code=2, biz_msg contains "password_or_user_name_is_wrong")
     │   │── InvalidRefFileIdError (biz_code=9, biz_msg contains "invalid ref file id")
-    │   └── (другие коды API)
+    │   └── (other API codes)
     ├── EmptyUploadedFileError
     └── VisionUnavailableError    (SSE hint contains "vision is temporarily unavailable")
 ```
@@ -43,23 +43,8 @@ from aiodeepseek.types.exceptions import DeepSeekError
 Общая ошибка запроса к API.
 
 | Атрибут  | Тип           | Описание                                           |
-|----------|---------------|----------------------------------------------------|
+|----------|----------------|----------------------------------------------------|
 | `status` | `int \| None` | HTTP-статус ответа, или `None` если ошибка не HTTP |
-
-```python
-import asyncio
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import DeepSeekError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="...") as client:
-            await client.ask("Привет")
-    except DeepSeekError as e:
-        print(e, e.status)
-
-asyncio.run(main())
-```
 
 ---
 
@@ -85,21 +70,6 @@ from aiodeepseek.types.exceptions import AuthorizationError
 ```
 
 Токен недействителен или устарел. Код API: `40003`.
-
-```python
-import asyncio
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import AuthorizationError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="невалидный") as client:
-            await client.ask("Привет")
-    except AuthorizationError:
-        print("Токен недействителен, нужно получить новый")
-
-asyncio.run(main())
-```
 
 ---
 
@@ -133,21 +103,6 @@ from aiodeepseek.types.exceptions import DeepSeekError
 
 Подкласс `DeepSeekBizError`. Выбрасывается при неверном email или пароле при поптыке входа в аккаунт (`biz_code=2`, `biz_msg` содержит `PASSWORD_OR_USER_NAME_IS_WRONG`).
 
-```python
-import asyncio
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import DeepSeekError
-
-async def main():
-    try:
-        async with DeepSeekClient(email="me@x.com", password="wrong") as client:
-            pass
-    except DeepSeekError as e:
-        print("Неверные учётные данные:", e)
-
-asyncio.run(main())
-```
-
 ---
 
 ## VisionUnavailableError
@@ -157,24 +112,6 @@ from aiodeepseek.types.exceptions import VisionUnavailableError
 ```
 
 DeepSeek временно не обрабатывает машинным зрением (`ModelType.DEFAULT` все еще может распознать изображения с помощью `OCR`). Выбрасывается из SSE-потока при получении hint-события с текстом `"vision is temporarily unavailable"`.
-
-```python
-import asyncio
-from pathlib import Path
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import VisionUnavailableError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="...") as client:
-            img = await client.upload_image(Path("photo.jpg"))
-            result = await client.ask("Опиши", image=img)
-    except VisionUnavailableError:
-        print("Vision временно недоступен, попробуйте позже")
-
-asyncio.run(main())
-```
-
 
 ---
 
@@ -195,21 +132,6 @@ Solver не нашёл нонс в пределах `difficulty`. Подробн
 | `algorithm`  | `str` | Алгоритм, например `"DeepSeekHashV1"` |
 | `signature`  | `str` | Подпись задачи от сервера             |
 
-```python
-import asyncio
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import PowNotSolvedError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="...") as client:
-            await client.ask("Привет")
-    except PowNotSolvedError as e:
-        print(f"PoW провалился: difficulty={e.difficulty}, challenge={e.challenge}")
-
-asyncio.run(main())
-```
-
 ---
 
 ## EmptyUploadedFileError
@@ -219,22 +141,6 @@ from aiodeepseek.types.exceptions import EmptyUploadedFileError
 ```
 
 Сервер вернул статус `CONTENT_EMPTY` во время поллинга загруженного файла - файл пустой или не был распознан бэкендом DeepSeek.
-
-```python
-import asyncio
-from pathlib import Path
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import EmptyUploadedFileError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="...") as client:
-            await client.ask("Опиши", image=Path("empty.jpg"))
-    except EmptyUploadedFileError as e:
-        print(f"Файл отклонён сервером: {e}")
-
-asyncio.run(main())
-```
 
 ---
 
@@ -252,22 +158,7 @@ from aiodeepseek.types.exceptions import InvalidRefFileIdError
 | `biz_msg`  | `str`          | Сообщение от сервера |
 | `data`     | `dict \| None` | Полный ответ         |
 
-```python
-import asyncio
-from pathlib import Path
-from aiodeepseek import DeepSeekClient
-from aiodeepseek.types.exceptions import InvalidRefFileIdError
-
-async def main():
-    try:
-        async with DeepSeekClient(token="...") as client:
-            await client.ask("Опиши", image=Path("photo.jpg"))
-    except InvalidRefFileIdError as e:
-        print(f"Файл не принят: biz_code={e.biz_code}, msg={e.biz_msg}")
-
-asyncio.run(main())
-```
-
+---
 
 ## Смотрите также
 

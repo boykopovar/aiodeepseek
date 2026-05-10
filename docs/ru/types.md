@@ -27,7 +27,6 @@ from aiodeepseek.types.enums import ModelType
 async def main():
     async with DeepSeekClient(token="...", model=ModelType.EXPERT) as client:
         result = await client.ask("Сложный вопрос", model=ModelType.VISION)
-
 ```
 
 ---
@@ -51,14 +50,12 @@ import asyncio
 from aiodeepseek import DeepSeekClient
 from aiodeepseek.types.models.classes import DeepSeekTurnResult
 
-
 async def main():
     async with DeepSeekClient(token="...") as client:
         result: DeepSeekTurnResult = await client.ask("Привет")
         print(result.text)
         print(result.session_id)
         print(result.message_id)
-
 
 asyncio.run(main())
 ```
@@ -86,14 +83,12 @@ from pathlib import Path
 from aiodeepseek import DeepSeekClient
 from aiodeepseek.types.models.classes import UploadedImage
 
-
 async def main():
     async with DeepSeekClient(token="...") as client:
         img: UploadedImage = await client.upload_image(Path("photo.jpg"))
         print(img.file_id, img.width, img.height)
         result = await client.ask("Что на фото?", image=img)
         print(result.text)
-
 
 asyncio.run(main())
 ```

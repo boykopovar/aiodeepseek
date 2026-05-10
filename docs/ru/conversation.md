@@ -66,10 +66,10 @@ from aiodeepseek import DeepSeekClient
 async def main():
     async with DeepSeekClient(token="...") as client:
         chat = client.new_conversation()
-        last = 0
+
         async for chunk in chat.ask_stream("Перечисли планеты"):
-            print(chunk[last:], end="", flush=True)
-            last = len(chunk)
+            print(chunk, end="", flush=True)
+
         print()
 
 asyncio.run(main())
@@ -77,7 +77,23 @@ asyncio.run(main())
 
 Стримит ответ и автоматически обновляет состояние диалога после завершения стрима.
 
-Каждый chunk - это накопленный текст от начала ответа. Принимает те же параметры, что `ask`.
+По умолчанию каждый yielded-кусок содержит только новый фрагмент текста.
+
+Используйте `cumulative=True`, чтобы получать полный накопленный ответ на каждой итерации.
+
+```python
+async for chunk in chat.ask_stream(
+    "Перечисли планеты",
+    cumulative=True,
+):
+    print(chunk)
+```
+
+Принимает те же параметры, что и `ask`, плюс:
+
+| Параметр     | Тип    | Описание                                               |
+|--------------|--------|--------------------------------------------------------|
+| `cumulative` | `bool` | Возвращать накопленный текст вместо новых фрагментов   |
 
 ---
 

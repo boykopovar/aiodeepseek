@@ -73,12 +73,13 @@ class Conversation:
         return result
 
     async def ask_stream(
-        self,
-        prompt: str,
-        *,
-        image: Optional[Union[UploadedImage, bytes, Path]] = None,
-        model: Optional[str] = None,
-        timeout: Optional[float] = None,
+            self,
+            prompt: str,
+            *,
+            image: Optional[Union[UploadedImage, bytes, Path]] = None,
+            model: Optional[str] = None,
+            timeout: Optional[float] = None,
+            cumulative: bool = False,
     ) -> AsyncIterator[str]:
         """Stream the reply as cumulative text chunks and update conversation state.
 
@@ -89,9 +90,12 @@ class Conversation:
             image: An :class:`~aiodeepseek.types.models.UploadedImage` to attach.
             model: Override the client-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
+            cumulative: Yield the full response so far on each chunk.
+                If ``False``, yields only newly generated text chunks.
 
         Yields:
             Cumulative assistant text — each value is the full response so far.
+            If ``cumulative=False`` only newly generated text chunks are yielded.
         """
         resolved_model = model if model is not None else self._client._default_model
         last_message_id: Optional[str] = None
@@ -99,18 +103,20 @@ class Conversation:
         if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
             image = await self._client.upload_image(image)
 
-        async for cumulative, mid in self._client.stream_chat(
-            self._client._token,
-            self._client._session_id,
-            prompt,
-            resolved_model,
-            timeout,
-            parent_message_id=self._parent_message_id,
-            image=image,
+        async for chunk, mid in self._client.stream_chat(
+                self._client._token,
+                self._client._session_id,
+                prompt,
+                resolved_model,
+                timeout,
+                parent_message_id=self._parent_message_id,
+                image=image,
+                cumulative=cumulative,
         ):
             if mid is not None:
                 last_message_id = mid
-            yield cumulative
+
+            yield chunk
 
         if last_message_id is not None:
             self._parent_message_id = last_message_id

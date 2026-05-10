@@ -9,7 +9,7 @@ from aiodeepseek.clients.files import _FilesClient
 
 
 class DeepSeekClient(_FilesClient):
-    """Async client for the DeepSeek iOS API.
+    """Async client for the DeepSeek mobile API.
 
     Inherits the full class hierarchy:
     ``_BaseClient → _AuthClient → _ChatClient → _FilesClient → DeepSeekClient``.
@@ -172,18 +172,16 @@ class DeepSeekClient(_FilesClient):
         )
 
     async def ask_stream(
-        self,
-        prompt: str,
-        *,
-        image: Optional[Union[UploadedImage, bytes, Path]] = None,
-        model: Optional[ModelType] = None,
-        timeout: Optional[float] = None,
-        parent_message_id: Optional[str] = None,
+            self,
+            prompt: str,
+            *,
+            image: Optional[Union[UploadedImage, bytes, Path]] = None,
+            model: Optional[ModelType] = None,
+            timeout: Optional[float] = None,
+            parent_message_id: Optional[str] = None,
+            cumulative: bool = False,
     ) -> AsyncIterator[str]:
-        """Stream the assistant reply as cumulative text chunks.
-
-        Each yielded string is the full response accumulated so far.
-        The last yielded value is the complete reply.
+        """Stream the assistant reply as text chunks.
 
         Args:
             prompt: The user message to send.
@@ -191,25 +189,30 @@ class DeepSeekClient(_FilesClient):
             model: Override the instance-level default model for this turn.
             timeout: Override the client-level default timeout for this call.
             parent_message_id: Message id of the previous assistant turn.
+            cumulative: Yield the full response so far on each chunk.
+                If ``False``, yields only newly generated text fragments.
 
         Yields:
-            Cumulative assistant text — each value is the full response so far.
+            Assistant text chunks.
+            If ``cumulative=True``, each value contains the full response so far.
+            If ``cumulative=False``, each value contains only the latest fragment.
         """
         resolved_model = model if model is not None else self._default_model
 
         if image is not None and (isinstance(image, bytes) or isinstance(image, Path)):
             image = await self.upload_image(image)
 
-        async for cumulative, _ in self.stream_chat(
-            self._token,
-            self._session_id,
-            prompt,
-            resolved_model,
-            timeout,
-            parent_message_id=parent_message_id,
-            image=image,
+        async for chunk, _ in self.stream_chat(
+                self._token,
+                self._session_id,
+                prompt,
+                resolved_model,
+                timeout,
+                parent_message_id=parent_message_id,
+                image=image,
+                cumulative=cumulative,
         ):
-            yield cumulative
+            yield chunk
 
     def new_conversation(self) -> Conversation:
         """Return a new :class:`~aiodeepseek.Conversation` bound to this client.

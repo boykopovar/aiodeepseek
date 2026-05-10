@@ -8,6 +8,7 @@ from typing import Dict
 from dotenv import load_dotenv
 
 from aiodeepseek import DeepSeekClient
+from aiodeepseek.types.enums import ModelType
 
 load_dotenv()
 
@@ -44,11 +45,8 @@ async def main() -> None:
         print(f"Question: {question}")
         print("Answer: ", end="", flush=True)
 
-        last_len = 0
-        async for chunk in client.ask_stream(question, image=img):
-            new_part = chunk[last_len:]
-            print(new_part, end="", flush=True)
-            last_len = len(chunk)
+        async for chunk in client.ask_stream(question, image=img, model=ModelType.DEFAULT):
+            print(chunk, end="", flush=True)
 
         print(f"\n[done {time.perf_counter() - t0:.2f}s]")
 

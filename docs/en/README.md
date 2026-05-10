@@ -8,15 +8,13 @@
 
 A high-performance async Python client for the private DeepSeek API. Supports streaming, image uploads, multi-turn conversations, and new account registration.
 
-➡️ Russian documentation: [docs/ru/README.md](docs/ru/README.md)
-
 ## Installation
 
 ```bash
 pip install git+ssh://git@github.com/boykopovar/aiodeepseek.git -U
 ```
 
-A C++ extension build requires a compiler with AVX2 support and `pybind11`. More details are in [docs/en/pow.md](docs/en/pow.md). You can also download a prebuilt [release](https://github.com/boykopovar/aiodeepseek/releases).
+A C++ extension build requires a compiler with AVX2 support and `pybind11`. More details are in [docs/en/pow.md](pow.md). You can also download a prebuilt [release](https://github.com/boykopovar/aiodeepseek/releases).
 
 ---
 
@@ -58,8 +56,10 @@ from aiodeepseek import DeepSeekClient
 
 async def main():
     async with DeepSeekClient(token="YOUR_TOKEN") as client:
+        last_len = 0
         async for chunk in client.ask_stream("Tell me about Python"):
-            print(chunk, end="", flush=True)
+            print(chunk[last_len:], end="", flush=True)
+            last_len = len(chunk)
 
 asyncio.run(main())
 ```
@@ -73,8 +73,8 @@ from aiodeepseek import DeepSeekClient
 async def main():
     async with DeepSeekClient(token="YOUR_TOKEN") as client:
         chat = client.new_conversation()
-        print((await chat.ask("What is your name?")).text)
-        print((await chat.ask("What can you do?")).text)
+        print(await chat.ask("What is your name?"))
+        print(await chat.ask("What can you do?"))
 
 asyncio.run(main())
 ```
@@ -171,17 +171,17 @@ asyncio.run(main())
 
 ## Proof-of-Work
 
-Before every request, the client automatically solves the PoW challenge issued by the DeepSeek server. Typical difficulty is **144,000 iterations**. The calculation is implemented in C++ using AVX2, which keeps it barely noticeable in practice. More details are in [docs/en/pow.md](docs/en/pow.md).
+Before every request, the client automatically solves the PoW challenge issued by the DeepSeek server. Typical difficulty is **144,000 iterations**. The calculation is implemented in C++ using AVX2, which keeps it barely noticeable in practice. More details are in [docs/en/pow.md](pow.md).
 
 ---
 
 ## Documentation
 
-- [DeepSeekClient - client methods](docs/en/client.md)
-- [Conversation - multi-turn dialog](docs/en/conversation.md)
-- [Types and data models](docs/en/types.md)
-- [Exceptions](docs/en/exceptions.md)
-- [Proof-of-Work](docs/en/pow.md)
+- [DeepSeekClient - client methods](client.md)
+- [Conversation - multi-turn dialog](conversation.md)
+- [Types and data models](types.md)
+- [Exceptions](exceptions.md)
+- [Proof-of-Work](pow.md)
 
 ---
 

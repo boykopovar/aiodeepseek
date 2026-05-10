@@ -69,11 +69,9 @@ pip install git+ssh://git@github.com/boykopovar/aiodeepseek.git -U
 
 Если решение не найдено в пределах `difficulty`, выбрасывается `PowNotSolvedError("PoW not solved within difficulty limit")`.
 
-
 ### Высокая нагрузка на CPU
 
 При каждом `ask` / `ask_stream` запускается параллельный перебор нонсов на всех ядрах. Это короткие импульсы нагрузки (миллисекунды). Если это критично - используйте `timeout` для управления ожиданием.
-
 
 ---
 
