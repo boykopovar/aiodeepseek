@@ -2,8 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)
-![License](https://img.shields.io/github/license/boykopovar/aiodeepseek)
-![CI](https://img.shields.io/github/actions/workflow/status/boykopovar/aiodeepseek/python.yml?branch=main)
+![Async](https://img.shields.io/badge/asyncio-fully%20async-blueviolet)
 ![DeepSeek](https://img.shields.io/badge/API-DeepSeek-blue)
 
 A high-performance async Python client for the private DeepSeek API. Supports streaming, image uploads, multi-turn conversations, and new account registration.
@@ -13,7 +12,7 @@ A high-performance async Python client for the private DeepSeek API. Supports st
 ## Installation
 
 ```bash
-pip install git+ssh://git@github.com/boykopovar/aiodeepseek.git -U
+pip install aiodeepseek
 ```
 
 A C++ extension build requires a compiler with AVX2 support and `pybind11`. More details are in [docs/en/pow.md](docs/en/pow.md). You can also download a prebuilt [release](https://github.com/boykopovar/aiodeepseek/releases).

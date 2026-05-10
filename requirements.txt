@@ -1,3 +1,6 @@
 aiohttp
 pybind11
 python-dotenv
+build
+twine
+cibuildwheel
