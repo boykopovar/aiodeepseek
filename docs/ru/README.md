@@ -26,7 +26,10 @@ import asyncio
 from aiodeepseek import DeepSeekClient
 
 async def main():
-    async with DeepSeekClient(email="myname@example.com", password="password123") as client:
+    async with DeepSeekClient(
+            email="myname@example.com",
+            password="password123"
+    ) as client:
         result = await client.ask("Привет!")
         print(result.text)
 
@@ -55,7 +58,9 @@ from aiodeepseek import DeepSeekClient
 
 async def main():
     async with DeepSeekClient(token="ВАШ_ТОКЕН") as client:
-        async for chunk in client.ask_stream("Расскажи о Python"):
+        async for chunk in client.ask_stream(
+                prompt="Расскажи о Python"
+        ):
             print(chunk, end="", flush=True)
 
 asyncio.run(main())
@@ -133,7 +138,10 @@ asyncio.run(main())
 from aiodeepseek import DeepSeekClient
 from aiodeepseek.types.enums import ModelType
 
-async with DeepSeekClient(token="...", model=ModelType.VISION) as client:
+async with DeepSeekClient(
+        token="...",
+        model=ModelType.VISION
+) as client:
     ...
 ```
 

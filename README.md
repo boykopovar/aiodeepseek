@@ -28,7 +28,10 @@ import asyncio
 from aiodeepseek import DeepSeekClient
 
 async def main():
-    async with DeepSeekClient(email="myname@example.com", password="password123") as client:
+    async with DeepSeekClient(
+            email="myname@example.com",
+            password="password123"
+    ) as client:
         result = await client.ask("Hello!")
         print(result.text)
 
@@ -57,7 +60,9 @@ from aiodeepseek import DeepSeekClient
 
 async def main():
     async with DeepSeekClient(token="YOUR_TOKEN") as client:
-        async for chunk in client.ask_stream("Tell me about Python"):
+        async for chunk in client.ask_stream(
+                prompt="Tell me about Python"
+        ):
             print(chunk, end="", flush=True)
 
 asyncio.run(main())
