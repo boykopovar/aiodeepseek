@@ -1,5 +1,9 @@
 # aiodeepseek
 
+<p align="left">
+  <img src="../assets/icon.svg" width="90">
+</p>
+
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)
 ![Async](https://img.shields.io/badge/asyncio-fully%20async-blueviolet)
