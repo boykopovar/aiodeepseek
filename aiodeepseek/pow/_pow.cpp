@@ -10,8 +10,8 @@
 
 namespace py = pybind11;
 
-static constexpr size_t RATE    = 136;
-static constexpr size_t RATE_W  = RATE / 8;
+static constexpr size_t RATE = 136;
+static constexpr size_t RATE_W = RATE / 8;
 static constexpr size_t MAX_NONCE_DEC = 20;
 
 static const uint64_t RC[24] = {
@@ -70,11 +70,11 @@ static inline int fast_u64_to_dec(uint64_t v, char* out) {
 struct PowCtx {
     uint64_t static_state[25];
     uint64_t target4[4];
-    uint8_t  dyn_tpl[24];
-    size_t   base_len;
-    size_t   dyn_word_start;
-    size_t   dyn_word_count;
-    size_t   dyn_offset;
+    uint8_t dyn_tpl[24];
+    size_t base_len;
+    size_t dyn_word_start;
+    size_t dyn_word_count;
+    size_t dyn_offset;
 };
 
 static PowCtx build_ctx(const std::string& base, const std::string& hex) {
@@ -92,10 +92,10 @@ static PowCtx build_ctx(const std::string& base, const std::string& hex) {
     }
 
     ctx.dyn_word_start = ctx.base_len / 8;
-    ctx.dyn_offset     = ctx.base_len % 8;
-    size_t dyn_last      = ctx.base_len + MAX_NONCE_DEC;
-    size_t dyn_word_end  = dyn_last / 8 + 1;
-    ctx.dyn_word_count   = dyn_word_end - ctx.dyn_word_start;
+    ctx.dyn_offset = ctx.base_len % 8;
+    size_t dyn_last = ctx.base_len + MAX_NONCE_DEC;
+    size_t dyn_word_end = dyn_last / 8 + 1;
+    ctx.dyn_word_count = dyn_word_end - ctx.dyn_word_start;
     if (ctx.dyn_word_start + ctx.dyn_word_count > RATE_W)
         ctx.dyn_word_count = RATE_W - ctx.dyn_word_start;
 
@@ -140,20 +140,20 @@ static PowCtx build_ctx(const std::string& base, const std::string& hex) {
         D[3] = _mm256_xor_si256(C[2], R4(C[4], 1));                                                \
         D[4] = _mm256_xor_si256(C[3], R4(C[0], 1));                                                \
         for (int _j = 0; _j < 25; ++_j) A[_j] = _mm256_xor_si256(A[_j], D[_j % 5]);              \
-        B[ 0] =        A[ 0];                                                                       \
-        B[ 1] = R4(A[ 6], 44);                                                                     \
-        B[ 2] = R4(A[12], 43);                                                                     \
-        B[ 3] = R4(A[18], 21);                                                                     \
-        B[ 4] = R4(A[24], 14);                                                                     \
-        B[ 5] = R4(A[ 3], 28);                                                                     \
-        B[ 6] = R4(A[ 9], 20);                                                                     \
-        B[ 7] = R4(A[10],  3);                                                                     \
-        B[ 8] = R4(A[16], 45);                                                                     \
-        B[ 9] = R4(A[22], 61);                                                                     \
-        B[10] = R4(A[ 1],  1);                                                                     \
-        B[11] = R4(A[ 7],  6);                                                                     \
+        B[0] = A[ 0];                                                                       \
+        B[1] = R4(A[ 6], 44);                                                                     \
+        B[2] = R4(A[12], 43);                                                                     \
+        B[3] = R4(A[18], 21);                                                                     \
+        B[4] = R4(A[24], 14);                                                                     \
+        B[5] = R4(A[ 3], 28);                                                                     \
+        B[6] = R4(A[ 9], 20);                                                                     \
+        B[7] = R4(A[10], 3);                                                                     \
+        B[8] = R4(A[16], 45);                                                                     \
+        B[9] = R4(A[22], 61);                                                                     \
+        B[10] = R4(A[ 1], 1);                                                                     \
+        B[11] = R4(A[ 7], 6);                                                                     \
         B[12] = R4(A[13], 25);                                                                     \
-        B[13] = R4(A[19],  8);                                                                     \
+        B[13] = R4(A[19], 8);                                                                     \
         B[14] = R4(A[20], 18);                                                                     \
         B[15] = R4(A[ 4], 27);                                                                     \
         B[16] = R4(A[ 5], 36);                                                                     \
@@ -164,17 +164,17 @@ static PowCtx build_ctx(const std::string& base, const std::string& hex) {
         B[21] = R4(A[ 8], 55);                                                                     \
         B[22] = R4(A[14], 39);                                                                     \
         B[23] = R4(A[15], 41);                                                                     \
-        B[24] = R4(A[21],  2);                                                                     \
-        A[ 0] = _mm256_xor_si256(B[ 0], _mm256_andnot_si256(B[ 1], B[ 2])); \
-        A[ 1] = _mm256_xor_si256(B[ 1], _mm256_andnot_si256(B[ 2], B[ 3])); \
-        A[ 2] = _mm256_xor_si256(B[ 2], _mm256_andnot_si256(B[ 3], B[ 4])); \
-        A[ 3] = _mm256_xor_si256(B[ 3], _mm256_andnot_si256(B[ 4], B[ 0])); \
-        A[ 4] = _mm256_xor_si256(B[ 4], _mm256_andnot_si256(B[ 0], B[ 1])); \
-        A[ 5] = _mm256_xor_si256(B[ 5], _mm256_andnot_si256(B[ 6], B[ 7])); \
-        A[ 6] = _mm256_xor_si256(B[ 6], _mm256_andnot_si256(B[ 7], B[ 8])); \
-        A[ 7] = _mm256_xor_si256(B[ 7], _mm256_andnot_si256(B[ 8], B[ 9])); \
-        A[ 8] = _mm256_xor_si256(B[ 8], _mm256_andnot_si256(B[ 9], B[ 5])); \
-        A[ 9] = _mm256_xor_si256(B[ 9], _mm256_andnot_si256(B[ 5], B[ 6])); \
+        B[24] = R4(A[21], 2);                                                                     \
+        A[0] = _mm256_xor_si256(B[ 0], _mm256_andnot_si256(B[ 1], B[ 2])); \
+        A[1] = _mm256_xor_si256(B[ 1], _mm256_andnot_si256(B[ 2], B[ 3])); \
+        A[2] = _mm256_xor_si256(B[ 2], _mm256_andnot_si256(B[ 3], B[ 4])); \
+        A[3] = _mm256_xor_si256(B[ 3], _mm256_andnot_si256(B[ 4], B[ 0])); \
+        A[4] = _mm256_xor_si256(B[ 4], _mm256_andnot_si256(B[ 0], B[ 1])); \
+        A[5] = _mm256_xor_si256(B[ 5], _mm256_andnot_si256(B[ 6], B[ 7])); \
+        A[6] = _mm256_xor_si256(B[ 6], _mm256_andnot_si256(B[ 7], B[ 8])); \
+        A[7] = _mm256_xor_si256(B[ 7], _mm256_andnot_si256(B[ 8], B[ 9])); \
+        A[8] = _mm256_xor_si256(B[ 8], _mm256_andnot_si256(B[ 9], B[ 5])); \
+        A[9] = _mm256_xor_si256(B[ 9], _mm256_andnot_si256(B[ 5], B[ 6])); \
         A[10] = _mm256_xor_si256(B[10], _mm256_andnot_si256(B[11], B[12])); \
         A[11] = _mm256_xor_si256(B[11], _mm256_andnot_si256(B[12], B[13])); \
         A[12] = _mm256_xor_si256(B[12], _mm256_andnot_si256(B[13], B[14])); \
@@ -218,7 +218,7 @@ static void worker_avx2(const PowCtx& ctx, uint64_t from, uint64_t to,
     alignas(32) uint8_t dyn[4][24];
     char nbuf[4][21];
 
-    const size_t dyn_offset     = ctx.dyn_offset;
+    const size_t dyn_offset = ctx.dyn_offset;
     const size_t dyn_word_start = ctx.dyn_word_start;
     const size_t dyn_word_count = ctx.dyn_word_count;
 
@@ -300,7 +300,7 @@ static int64_t solve(const std::string& base, const std::string& challenge_hex,
 
     for (unsigned t = 0; t < nthreads; ++t) {
         uint64_t from = static_cast<uint64_t>(t) * chunk;
-        uint64_t to   = std::min(from + chunk, udiff);
+        uint64_t to = std::min(from + chunk, udiff);
         threads.emplace_back(worker_avx2, std::cref(ctx), from, to, std::ref(result));
     }
 
